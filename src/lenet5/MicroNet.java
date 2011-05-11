@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -149,6 +150,7 @@ public class MicroNet {
 					}
 				}
 			}
+			Collections.shuffle(exs);
 		}
 		
 		System.out.println("Loaded images");
@@ -205,17 +207,24 @@ public class MicroNet {
 				System.out.println(i);
 				String bestScoringLetter = null;
 				double bestScore = -100;
+				double scoreForCorrectLetter = 0;
 				for (Map.Entry<String, MicroNetwork> e : networks.entrySet()) {
 					double score = e.getValue().run(cd.data[i]);
 					if (bestScoringLetter == null || score > bestScore) {
 						bestScoringLetter = e.getKey();
 						bestScore = score;
 					}
+					if (e.getKey().equals(lName)) {
+						scoreForCorrectLetter = score;
+					}
 				}
 				
 				if (bestScoringLetter.equals(lName)) {
 					hits++;
 				} else {
+					System.out.println("Mis-identified " + lName + " " + i + " as " +
+							bestScoringLetter + " with a score of " + bestScore + " vs " +
+							scoreForCorrectLetter + ".");
 					misses++;
 				}
 			}
@@ -304,13 +313,13 @@ public class MicroNet {
 	}
 	
 	static double[] convolve(BufferedImage src) {
-		BufferedImage scaledSrc = new BufferedImage(12, 12, BufferedImage.TYPE_INT_RGB);
+		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.drawImage(src, 1, 1, 11, 11, 0, 0, src.getWidth(), src.getHeight(), null);
+		g.drawImage(src, 2, 2, 12, 12, 0, 0, src.getWidth(), src.getHeight(), null);
 		src = scaledSrc;
-		double[] result = new double[kernels.length * 5 * 5];
-		for (int y = 0; y < 5; y++) { for (int x = 0; x < 5; x++) {
+		double[] result = new double[kernels.length * 6 * 6];
+		for (int y = 0; y < 6; y++) { for (int x = 0; x < 6; x++) {
 			double[][][] kernelResult = new double[kernels.length][2][2];
 			for (int sdy = 0; sdy < 2; sdy++) { for (int sdx = 0; sdx < 2; sdx++) {
 				for (int kdy = 0; kdy < 3; kdy++) { for (int kdx = 0; kdx < 3; kdx++) {
@@ -324,11 +333,9 @@ public class MicroNet {
 			for (int k = 0; k < kernels.length; k++) {
 				double total = 0;
 				for (int sdy = 0; sdy < 2; sdy++) { for (int sdx = 0; sdx < 2; sdx++) {
-					total += kernelResult[k][sdy][sdx];// * kernelResult[k][sdy][sdx];
-					//THIS LAST LINE IS SOMEHOW CAUSING NAN - OOPS
-					//total += Math.pow(Math.abs(kernelResult[k][sdy][sdx]), 1.3) / 8;// * kernelResult[k][sdy][sdx];
+					total += kernelResult[k][sdy][sdx];
 				} }
-				result[k * 25 + y * 5 + x] = total;
+				result[k * 36 + y * 6 + x] = total;
 			}
 		} }
 		return result;
