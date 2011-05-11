@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import javax.imageio.ImageIO;
 
 public class MicroNet {
@@ -110,31 +112,38 @@ public class MicroNet {
 		},
 	};
 	
+	static class ConvolvedData {
+		public double[][] data;
+
+		public ConvolvedData(double[][] data) {
+			this.data = data;
+		}
+	}
+	
 	public static void main(String[] args) {
-		File aExFolder = new File(args[0]);
 		ArrayList<File> bExFolders = new ArrayList<File>();
 		
-		for (int i = 1; i < args.length; i++) {
+		for (int i = 0; i < args.length; i++) {
 			bExFolders.add(new File(args[i]));
 		}
 		
-		ArrayList<BufferedImage> aExs = new ArrayList<BufferedImage>();
-		for (File f : aExFolder.listFiles()) {
-			if (f.getName().endsWith(".png")) {
-				try {
-					aExs.add(ImageIO.read(f));
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
+		HashMap<String, ArrayList<BufferedImage>> lToEx = new HashMap<String, ArrayList<BufferedImage>>();
 		
-		ArrayList<BufferedImage> bExs = new ArrayList<BufferedImage>();
 		for (File fol : bExFolders) {
+			if (fol.listFiles() == null) {
+				System.out.println(fol + " is not a folder");
+				continue;
+			}
+			if (fol.listFiles().length < 10) {
+				System.out.println(fol + " doesn't have enough data");
+				continue;
+			}
+			ArrayList<BufferedImage> exs = new ArrayList<BufferedImage>();
+			lToEx.put(fol.getName(), exs);
 			for (File f : fol.listFiles()) {
 				if (f.getName().endsWith(".png")) {
 					try {
-						bExs.add(ImageIO.read(f));
+						exs.add(ImageIO.read(f));
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -143,17 +152,77 @@ public class MicroNet {
 		}
 		
 		System.out.println("Loaded images");
-				
-		double[][] as = new double[aExs.size()][0];
-		for (int i = 0; i < as.length; i++) {
-			as[i] = convolve(aExs.get(i));
+		
+		HashMap<String, ConvolvedData> lToCData = new HashMap<String, ConvolvedData>();
+		for (Map.Entry<String, ArrayList<BufferedImage>> w : lToEx.entrySet()) {
+			ArrayList<BufferedImage> exs = w.getValue();
+			double[][] data = new double[exs.size()][0];
+			for (int i = 0; i < data.length; i++) {
+				data[i] = convolve(exs.get(i));
+			}
+			lToCData.put(w.getKey(), new ConvolvedData(data));
 		}
-		double[][] bs = new double[bExs.size()][0];
-		for (int i = 0; i < bs.length; i++) {
-			bs[i] = convolve(bExs.get(i));
-		}
+		
 		System.out.println("Convolved data");
 		
+		HashMap<String, MicroNetwork> networks = new HashMap<String, MicroNetwork>();
+		
+		for (String lName : lToCData.keySet()) {
+			int positiveTrainingSize = lToCData.get(lName).data.length / 2;
+			int negativeTrainingSize = -positiveTrainingSize;
+			for (ConvolvedData cd : lToCData.values()) {
+				negativeTrainingSize += cd.data.length / 2;
+			}
+			double[][] trainingPos = new double[positiveTrainingSize][0];
+			System.arraycopy(lToCData.get(lName).data, 0, trainingPos, 0, trainingPos.length);
+			double[][] trainingNeg = new double[negativeTrainingSize][0];
+			int offset = 0;
+			for (String lName2 : lToCData.keySet()) {
+				if (lName2.equals(lName)) { continue; }
+				System.arraycopy(lToCData.get(lName2).data, 0, trainingNeg, offset,
+						lToCData.get(lName2).data.length / 2);
+				offset += lToCData.get(lName2).data.length / 2;
+			}
+			
+			MicroNetwork mn = new MicroNetwork();
+			System.out.println("Created MN for " + lName);
+			for (int i = 0; i < 4; i++) {
+				mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
+				System.out.println("pass " + (i + 1) + " complete");
+			}
+
+			System.out.println("Trained MN for " + lName);
+			networks.put(lName, mn);
+		}
+		
+		System.out.println("Testing");
+		int hits = 0;
+		int misses = 0;
+		for (String lName : lToCData.keySet()) {
+			ConvolvedData cd = lToCData.get(lName);
+			System.out.println(lName + cd.data.length);
+			for (int i = cd.data.length / 2 + 1; i < cd.data.length; i++) {
+				System.out.println(i);
+				String bestScoringLetter = null;
+				double bestScore = -100;
+				for (Map.Entry<String, MicroNetwork> e : networks.entrySet()) {
+					double score = e.getValue().run(cd.data[i]);
+					if (bestScoringLetter == null || score > bestScore) {
+						bestScoringLetter = e.getKey();
+						bestScore = score;
+					}
+				}
+				
+				if (bestScoringLetter.equals(lName)) {
+					hits++;
+				} else {
+					misses++;
+				}
+			}
+		}
+		System.out.println("Hits: " + hits);
+		System.out.println("Misses: " + misses);
+		/*
 		double[][] trainingAs = new double[as.length / 2][0];
 		for (int i = 0; i < trainingAs.length; i++) {
 			trainingAs[i] = as[i];
@@ -172,7 +241,7 @@ public class MicroNet {
 		double[][] testBs = new double[bs.length / 2][0];
 		for (int i = 0; i < testBs.length; i++) {
 			testBs[i] = bs[bs.length / 2 + i];
-		}
+		}		
 		
 		double totalPosError = 0.0;
 		double totalNegError = 0.0;
@@ -180,7 +249,7 @@ public class MicroNet {
 		for (int j = 0; j < 1; j++) {
 			MicroNetwork mn = new MicroNetwork();
 			System.out.println("Created MN");
-			for (int i = 0; i < 12; i++) {
+			for (int i = 0; i < 4; i++) {
 				mn.train(trainingAs, trainingBs, 0.001, 0.0002);
 				System.out.println("pass " + (i + 1) + " complete");
 			}
@@ -190,7 +259,7 @@ public class MicroNet {
 			double err = 0.0;
 			for (double[] a : testAs) {
 				double result = mn.run(a);
-				System.out.println(result);
+				//System.out.println(result);
 				err += Math.abs(1.0 - result);
 			}
 			System.out.println("Positives' average error: " + (err / testAs.length));
@@ -199,7 +268,7 @@ public class MicroNet {
 			err = 0.0;
 			for (double[] b : testBs) {
 				double result = mn.run(b);
-				System.out.println(result);
+				//System.out.println(result);
 				err += Math.abs(result);
 			}
 			System.out.println("Negatives' average error: " + (err / testBs.length));
@@ -208,6 +277,8 @@ public class MicroNet {
 		
 		System.out.println("Positives' average error: " + (totalPosError / 1));
 		System.out.println("Negatives' average error: " + (totalNegError / 1));
+		 * 
+		 */
 	}
 	
 	public static void main1(String[] args) throws IOException {
