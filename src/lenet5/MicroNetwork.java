@@ -20,13 +20,13 @@ public class MicroNetwork {
 		//input.nodes.add(biasN);*/
 		
 		Layer hidden = new Layer("Hidden");
-		for (int i = 0; i < 143; i++) {
+		for (int i = 0; i < 44; i++) {
 			hidden.nodes.add(new Node("hidden " + i));
 		}
 		
 		// 2nd hidden layer
 		Layer h2 = new Layer("Hidden 2");
-		for (int i = 0; i < 44; i++) {
+		for (int i = 0; i < 9; i++) {
 			h2.nodes.add(new Node("h2 " + i));
 		}
 		

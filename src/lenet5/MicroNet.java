@@ -34,6 +34,7 @@ public class MicroNet {
 			{-1, -2, -1 }
 		},*/
 		
+		/*
 		// Hline
 		{
 			{-1, -1, -1 },
@@ -60,8 +61,9 @@ public class MicroNet {
 			{ 2, -1, -1 },
 			{-1,  2, -1 },
 			{-1, -1,  2 }
-		},
+		},*/
 		
+		/*
 		// ^ end
 		{
 			{-1, -1, -1 },
@@ -86,7 +88,10 @@ public class MicroNet {
 			{ 2,  2, -1 },
 			{-1, -1, -1 }
 		},
+		 * 
+		 */
 		
+		/*
 		// ^ shape
 		{
 			{-1,  2, -1 },
@@ -111,6 +116,28 @@ public class MicroNet {
 			{-1, -1,  2 },
 			{ 0,  2, -1 }
 		},
+		 * 
+		 */
+		
+		// c/o detector (vgap)
+		{
+			{-1,  4, -1 },
+			{-1, -2, -1 },
+			{-1,  4, -1 }
+		},
+		// weird-ass kernel
+		{
+			{-2,  4,  2 },
+			{-4,  0,  4 },
+			{ 2, -4, -2 }
+		},
+		// b/h detector (hgap)
+		/*
+		{
+			{-1, -1, -1 },
+			{ 4, -2,  4 },
+			{-1, -1, -1 }
+		},*/
 	};
 	
 	static class ConvolvedData {
