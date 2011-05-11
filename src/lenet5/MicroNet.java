@@ -6,10 +6,31 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import javax.imageio.ImageIO;
 
 public class MicroNet {
 	static final double[][][] kernels = {
+		// Identity
+		{
+			{ 0,  0,  0 },
+			{ 0,  1,  0 },
+			{ 0,  0,  0 }
+		},
+		/* -- makes it worse?
+		// Sobel
+		{
+			{-1,  0,  1 },
+			{-2,  0,  2 },
+			{-1,  0,  1 }
+		},
+		// Sobel
+		{
+			{ 1,  2,  1 },
+			{ 0,  0,  0 },
+			{-1, -2, -1 }
+		},*/
+		
 		// Hline
 		{
 			{-1, -1, -1 },
@@ -22,6 +43,9 @@ public class MicroNet {
 			{-1,  2, -1 },
 			{-1,  2, -1 }
 		},
+		
+		
+		
 		// / line
 		{
 			{-1, -1,  2 },
@@ -34,6 +58,7 @@ public class MicroNet {
 			{-1,  2, -1 },
 			{-1, -1,  2 }
 		},
+		
 		// ^ end
 		{
 			{-1, -1, -1 },
@@ -58,6 +83,7 @@ public class MicroNet {
 			{ 2,  2, -1 },
 			{-1, -1, -1 }
 		},
+		
 		// ^ shape
 		{
 			{-1,  2, -1 },
@@ -86,7 +112,11 @@ public class MicroNet {
 	
 	public static void main(String[] args) {
 		File aExFolder = new File(args[0]);
-		File bExFolder = new File(args[1]);
+		ArrayList<File> bExFolders = new ArrayList<File>();
+		
+		for (int i = 1; i < args.length; i++) {
+			bExFolders.add(new File(args[i]));
+		}
 		
 		ArrayList<BufferedImage> aExs = new ArrayList<BufferedImage>();
 		for (File f : aExFolder.listFiles()) {
@@ -97,19 +127,19 @@ public class MicroNet {
 					e.printStackTrace();
 				}
 			}
-			if (aExs.size() == 360) { break; } // qqDPS
 		}
 		
 		ArrayList<BufferedImage> bExs = new ArrayList<BufferedImage>();
-		for (File f : bExFolder.listFiles()) {
-			if (f.getName().endsWith(".png")) {
-				try {
-					bExs.add(ImageIO.read(f));
-				} catch (Exception e) {
-					e.printStackTrace();
+		for (File fol : bExFolders) {
+			for (File f : fol.listFiles()) {
+				if (f.getName().endsWith(".png")) {
+					try {
+						bExs.add(ImageIO.read(f));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 			}
-			if (bExs.size() == 360) { break; } // qqDPS
 		}
 		
 		System.out.println("Loaded images");
@@ -144,54 +174,70 @@ public class MicroNet {
 			testBs[i] = bs[bs.length / 2 + i];
 		}
 		
-		MicroNetwork mn = new MicroNetwork();
-		System.out.println("Created MN");
-		for (int i = 0; i < 9; i++) {
-			mn.train(trainingAs, trainingBs, 0.001, 0.0002);
-			System.out.println("pass " + (i + 1) + " complete");
+		double totalPosError = 0.0;
+		double totalNegError = 0.0;
+		
+		for (int j = 0; j < 1; j++) {
+			MicroNetwork mn = new MicroNetwork();
+			System.out.println("Created MN");
+			for (int i = 0; i < 12; i++) {
+				mn.train(trainingAs, trainingBs, 0.001, 0.0002);
+				System.out.println("pass " + (i + 1) + " complete");
+			}
+
+			System.out.println("Trained MN");
+
+			double err = 0.0;
+			for (double[] a : testAs) {
+				double result = mn.run(a);
+				System.out.println(result);
+				err += Math.abs(1.0 - result);
+			}
+			System.out.println("Positives' average error: " + (err / testAs.length));
+			totalPosError += err /  testAs.length;
+
+			err = 0.0;
+			for (double[] b : testBs) {
+				double result = mn.run(b);
+				System.out.println(result);
+				err += Math.abs(result);
+			}
+			System.out.println("Negatives' average error: " + (err / testBs.length));
+			totalNegError += err / testBs.length;
 		}
 		
-		System.out.println("Trained MN");
-		
-		double err = 0.0;
-		for (double[] a : testAs) {
-			double result = mn.run(a);
-			//System.out.println(result);
-			err += Math.abs(1.0 - result);
-		}
-		System.out.println("Positives' average error: " + (err / testAs.length));
-		
-		err = 0.0;
-		for (double[] b : testBs) {
-			double result = mn.run(b);
-			//System.out.println(result);
-			err += Math.abs(result);
-		}
-		System.out.println("Negatives' average error: " + (err / testBs.length));
+		System.out.println("Positives' average error: " + (totalPosError / 1));
+		System.out.println("Negatives' average error: " + (totalNegError / 1));
 	}
 	
 	public static void main1(String[] args) throws IOException {
 		BufferedImage src = ImageIO.read(new File(args[0]));
-		BufferedImage scaledSrc = new BufferedImage(12, 12, BufferedImage.TYPE_INT_RGB);
+		/*BufferedImage scaledSrc = new BufferedImage(12, 12, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.drawImage(src, 1, 1, 11, 11, 0, 0, src.getWidth(), src.getHeight(), null);
+		g.drawImage(src, 1, 1, 11, 11, 0, 0, src.getWidth(), src.getHeight(), null);*/
 		/*for (int i = 0; i < kernels.length; i++) {
 			ImageIO.write(convolve(scaledSrc, kernels[i]), "png", new File(new File(args[1]), i + ".png"));
 		}*/
-		double[] in = convolve(scaledSrc);
+		double[] in = convolve(src);
 		BufferedImage out = new BufferedImage(5, 5 * kernels.length, BufferedImage.TYPE_INT_RGB);
 		for (int k = 0; k < kernels.length; k++) {
 			for (int y = 0; y < 5; y++) { for (int x = 0; x < 5; x++) {
-				int rgbV = Math.min(255, Math.max(0, (int) (in[k * 25 + y * 5 + x])));
+				int rgbV = Math.min(255, Math.max(0, (int) (10 + in[k * 25 + y * 5 + x] * 20)));
 				Color c = new Color(rgbV, rgbV, rgbV);
 				out.setRGB(x, k * 5 + y, c.getRGB());
 			} }
 		}
+		//System.out.println(Arrays.toString(in));
 		ImageIO.write(out, "png", new File(args[1]));
 	}
 	
 	static double[] convolve(BufferedImage src) {
+		BufferedImage scaledSrc = new BufferedImage(12, 12, BufferedImage.TYPE_INT_RGB);
+		Graphics g = scaledSrc.getGraphics();
+		g.setColor(Color.WHITE);
+		g.drawImage(src, 1, 1, 11, 11, 0, 0, src.getWidth(), src.getHeight(), null);
+		src = scaledSrc;
 		double[] result = new double[kernels.length * 5 * 5];
 		for (int y = 0; y < 5; y++) { for (int x = 0; x < 5; x++) {
 			double[][][] kernelResult = new double[kernels.length][2][2];
@@ -208,6 +254,8 @@ public class MicroNet {
 				double total = 0;
 				for (int sdy = 0; sdy < 2; sdy++) { for (int sdx = 0; sdx < 2; sdx++) {
 					total += kernelResult[k][sdy][sdx];// * kernelResult[k][sdy][sdx];
+					//THIS LAST LINE IS SOMEHOW CAUSING NAN - OOPS
+					//total += Math.pow(Math.abs(kernelResult[k][sdy][sdx]), 1.3) / 8;// * kernelResult[k][sdy][sdx];
 				} }
 				result[k * 25 + y * 5 + x] = total;
 			}
