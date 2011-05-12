@@ -187,7 +187,7 @@ public class MicroNet {
 			ArrayList<BufferedImage> exs = w.getValue();
 			double[][] data = new double[exs.size()][0];
 			for (int i = 0; i < data.length; i++) {
-				data[i] = convolve(exs.get(i));
+				data[i] = convolve2(exs.get(i));
 			}
 			lToCData.put(w.getKey(), new ConvolvedData(data));
 		}
@@ -196,6 +196,13 @@ public class MicroNet {
 		
 		HashMap<String, MicroNetwork> networks = new HashMap<String, MicroNetwork>();
 		
+		String[][] problems = {
+			{ "o", "c" },
+			{ "c", "o" },
+			{ "h", "b" },
+			{ "b", "h" }
+		};
+				
 		for (String lName : lToCData.keySet()) {
 			int positiveTrainingSize = lToCData.get(lName).data.length / 2;
 			int negativeTrainingSize = -positiveTrainingSize;
@@ -215,10 +222,22 @@ public class MicroNet {
 			
 			MicroNetwork mn = new MicroNetwork();
 			System.out.println("Created MN for " + lName);
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 3; i++) {
 				mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
 				System.out.println("pass " + (i + 1) + " complete");
 			}
+			
+			/*
+			for (String[] p : problems) {
+				if (lName.equals(p[0])) {
+					trainingNeg = new double[lToCData.get(p[1]).data.length / 2][0];
+					System.arraycopy(lToCData.get(p[1]).data, 0, trainingNeg, 0, trainingNeg.length);
+					for (int i = 0; i < 10; i++) {
+						mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
+						System.out.println("special pass " + (i + 1) + " complete");
+					}
+				}
+			}*/
 
 			System.out.println("Trained MN for " + lName);
 			networks.put(lName, mn);
@@ -229,9 +248,9 @@ public class MicroNet {
 		int misses = 0;
 		for (String lName : lToCData.keySet()) {
 			ConvolvedData cd = lToCData.get(lName);
-			System.out.println(lName + cd.data.length);
+			//System.out.println(lName + cd.data.length);
 			for (int i = cd.data.length / 2 + 1; i < cd.data.length; i++) {
-				System.out.println(i);
+				//System.out.println(i);
 				String bestScoringLetter = null;
 				double bestScore = -100;
 				double scoreForCorrectLetter = 0;
@@ -246,12 +265,15 @@ public class MicroNet {
 					}
 				}
 				
-				if (bestScoringLetter.equals(lName)) {
+				if (bestScoringLetter.equals(lName) ||
+					(bestScoringLetter + "-uc").equals(lName) ||
+					bestScoringLetter.equals(lName + "-uc"))
+				{
 					hits++;
 				} else {
-					System.out.println("Mis-identified " + lName + " " + i + " as " +
+					/*System.out.println("Mis-identified " + lName + " " + i + " as " +
 							bestScoringLetter + " with a score of " + bestScore + " vs " +
-							scoreForCorrectLetter + ".");
+							scoreForCorrectLetter + ".");*/
 					misses++;
 				}
 			}
@@ -364,6 +386,25 @@ public class MicroNet {
 				} }
 				result[k * 36 + y * 6 + x] = total;
 			}
+		} }
+		return result;
+	}
+	
+	static double[] convolve2(BufferedImage src) {
+		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
+		Graphics g = scaledSrc.getGraphics();
+		g.setColor(Color.WHITE);
+		g.drawImage(src, 2, 2, 12, 12, 0, 0, src.getWidth(), src.getHeight(), null);
+		src = scaledSrc;
+		double[] result = new double[kernels.length * 12 * 12];
+		for (int y = 0; y < 12; y++) { for (int x = 0; x < 12; x++) {
+			for (int kdy = 0; kdy < 3; kdy++) { for (int kdx = 0; kdx < 3; kdx++) {
+				Color c = new Color(src.getRGB(x + kdx, y + kdy));
+				double intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 3.0;
+				for (int k = 0; k < kernels.length; k++) {
+					result[k * 144 + y * 12 + x] += intensity * kernels[k][kdy][kdx];
+				}
+			} }
 		} }
 		return result;
 	}

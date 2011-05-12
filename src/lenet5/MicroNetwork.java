@@ -11,7 +11,7 @@ public class MicroNetwork {
 	
 	public MicroNetwork() {
 		Layer input = new Layer("Input");
-		for (int i = 0; i < 6 * 6 * MicroNet.kernels.length; i++) {
+		for (int i = 0; i < 12 * 12 * MicroNet.kernels.length; i++) {
 			input.nodes.add(new Node("input " + i));
 		}
 		// Bias node!
@@ -46,7 +46,7 @@ public class MicroNetwork {
 				//if (r.nextInt(/*5*/5) == 0/*r.nextBoolean()*/) {
 				//	new Connection(inputs, hN, w);
 				//}
-				if (iNum / 36 != hNum / 3 && (iNum + hNum) % 4 == 0) {
+				if (iNum / 144 != hNum / 3 && (iNum + hNum) % 4 == 0) {
 					new Connection(inputs, hN, w);
 				}
 			}
