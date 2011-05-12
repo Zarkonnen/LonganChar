@@ -148,11 +148,34 @@ public class MicroNet {
 		}
 	}
 	
+	static final String[] LETTERS = {
+		"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+	};
+	
+	static String letterToFilename(String l) {
+		return
+				l.equals(".")
+				? "period"
+				: l.equals(":")
+				? "colon"
+				: l.equals("/")
+				? "slash"
+				: l.toLowerCase().equals(l)
+				? l
+				: l.toLowerCase() + "-uc";
+	}
+	
 	public static void main(String[] args) {
 		ArrayList<File> bExFolders = new ArrayList<File>();
 		
-		for (int i = 0; i < args.length; i++) {
+		/*for (int i = 0; i < args.length; i++) {
 			bExFolders.add(new File(args[i]));
+		}*/
+		for (String s : LETTERS) {
+			bExFolders.add(new File(new File(args[0]), letterToFilename(s)));
 		}
 		
 		HashMap<String, ArrayList<BufferedImage>> lToEx = new HashMap<String, ArrayList<BufferedImage>>();
