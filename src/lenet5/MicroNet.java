@@ -4,6 +4,9 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -168,14 +171,14 @@ public class MicroNet {
 				: l.toLowerCase() + "-uc";
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws FileNotFoundException, IOException {
 		ArrayList<File> bExFolders = new ArrayList<File>();
 		
 		/*for (int i = 0; i < args.length; i++) {
 			bExFolders.add(new File(args[i]));
 		}*/
 		for (String s : LETTERS) {
-			bExFolders.add(new File(new File(args[0]), letterToFilename(s)));
+			bExFolders.add(new File(new File(args[1]), letterToFilename(s)));
 		}
 		
 		HashMap<String, ArrayList<BufferedImage>> lToEx = new HashMap<String, ArrayList<BufferedImage>>();
@@ -199,6 +202,7 @@ public class MicroNet {
 						e.printStackTrace();
 					}
 				}
+				if (exs.size() == 100) { break; } // qqDPS
 			}
 			Collections.shuffle(exs);
 		}
@@ -219,51 +223,71 @@ public class MicroNet {
 		
 		HashMap<String, MicroNetwork> networks = new HashMap<String, MicroNetwork>();
 		
-		String[][] problems = {
-			{ "o", "c" },
-			{ "c", "o" },
-			{ "h", "b" },
-			{ "b", "h" }
-		};
-				
-		for (String lName : lToCData.keySet()) {
-			int positiveTrainingSize = lToCData.get(lName).data.length / 2;
-			int negativeTrainingSize = -positiveTrainingSize;
-			for (ConvolvedData cd : lToCData.values()) {
-				negativeTrainingSize += cd.data.length / 2;
-			}
-			double[][] trainingPos = new double[positiveTrainingSize][0];
-			System.arraycopy(lToCData.get(lName).data, 0, trainingPos, 0, trainingPos.length);
-			double[][] trainingNeg = new double[negativeTrainingSize][0];
-			int offset = 0;
-			for (String lName2 : lToCData.keySet()) {
-				if (lName2.equals(lName)) { continue; }
-				System.arraycopy(lToCData.get(lName2).data, 0, trainingNeg, offset,
-						lToCData.get(lName2).data.length / 2);
-				offset += lToCData.get(lName2).data.length / 2;
-			}
+		if (args[0].equals("train") || args[0].equals("trainAndTest")) {
+			String[][] problems = {
+				{ "o", "c" },
+				{ "c", "o" },
+				{ "h", "b" },
+				{ "b", "h" }
+			};
 			
-			MicroNetwork mn = new MicroNetwork();
-			System.out.println("Created MN for " + lName);
-			for (int i = 0; i < 3; i++) {
-				mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
-				System.out.println("pass " + (i + 1) + " complete");
-			}
-			
-			/*
-			for (String[] p : problems) {
-				if (lName.equals(p[0])) {
-					trainingNeg = new double[lToCData.get(p[1]).data.length / 2][0];
-					System.arraycopy(lToCData.get(p[1]).data, 0, trainingNeg, 0, trainingNeg.length);
-					for (int i = 0; i < 10; i++) {
-						mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
-						System.out.println("special pass " + (i + 1) + " complete");
-					}
+			for (String lName : lToCData.keySet()) {
+				int positiveTrainingSize = lToCData.get(lName).data.length / 2;
+				int negativeTrainingSize = -positiveTrainingSize;
+				for (ConvolvedData cd : lToCData.values()) {
+					negativeTrainingSize += cd.data.length / 2;
 				}
-			}*/
+				double[][] trainingPos = new double[positiveTrainingSize][0];
+				System.arraycopy(lToCData.get(lName).data, 0, trainingPos, 0, trainingPos.length);
+				double[][] trainingNeg = new double[negativeTrainingSize][0];
+				int offset = 0;
+				for (String lName2 : lToCData.keySet()) {
+					if (lName2.equals(lName)) { continue; }
+					System.arraycopy(lToCData.get(lName2).data, 0, trainingNeg, offset,
+							lToCData.get(lName2).data.length / 2);
+					offset += lToCData.get(lName2).data.length / 2;
+				}
 
-			System.out.println("Trained MN for " + lName);
-			networks.put(lName, mn);
+				MicroNetwork mn = new MicroNetwork();
+				System.out.println("Created MN for " + lName);
+				for (int i = 0; i < 3; i++) {
+					mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
+					System.out.println("pass " + (i + 1) + " complete");
+				}
+
+				/*
+				for (String[] p : problems) {
+					if (lName.equals(p[0])) {
+						trainingNeg = new double[lToCData.get(p[1]).data.length / 2][0];
+						System.arraycopy(lToCData.get(p[1]).data, 0, trainingNeg, 0, trainingNeg.length);
+						for (int i = 0; i < 10; i++) {
+							mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
+							System.out.println("special pass " + (i + 1) + " complete");
+						}
+					}
+				}*/
+
+				System.out.println("Trained MN for " + lName);
+				networks.put(lName, mn);
+			}
+		} else {
+			for (String lName : lToCData.keySet()) {
+				FileInputStream fis = new FileInputStream(new File(new File(args[2]), lName));
+				MicroNetwork mn = new MicroNetwork();
+				NetworkIO.input(mn.nw, fis);
+				fis.close();
+				System.out.println("Loaded MN for " + lName);
+				networks.put(lName, mn);
+			}
+		}
+		
+		if (args[0].equals("train")) {
+			for (String lName : networks.keySet()) {
+				FileOutputStream fos = new FileOutputStream(new File(new File(args[2]), lName));
+				NetworkIO.output(networks.get(lName).nw, fos);
+				fos.close();
+			}
+			return;
 		}
 		
 		System.out.println("Testing");
