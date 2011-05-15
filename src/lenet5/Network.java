@@ -9,6 +9,21 @@ public class Network {
 		this.layers = layers;
 	}
 	
+	public double cutBelowThreshold(double t) {
+		int nCut = 0;
+		double nConns = 0;
+		for (Layer l : layers) {
+			nConns += l.weights.size();
+			for (Weight w : l.weights) {
+				if (Math.abs(w.value) < t) {
+					w.value = 0;
+					nCut++;
+				}
+			}
+		}
+		return nCut / nConns;
+	}
+	
 	public void train(double[] input, double[] target, double n, double m) {
 		setInput(input);
 		update();

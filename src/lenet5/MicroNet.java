@@ -202,7 +202,6 @@ public class MicroNet {
 						e.printStackTrace();
 					}
 				}
-				if (exs.size() == 100) { break; } // qqDPS
 			}
 			Collections.shuffle(exs);
 		}
@@ -232,10 +231,14 @@ public class MicroNet {
 			};
 			
 			for (String lName : lToCData.keySet()) {
-				int positiveTrainingSize = lToCData.get(lName).data.length / 2;
+				int positiveTrainingSize = args[0].equals("train")
+						? lToCData.get(lName).data.length
+						: lToCData.get(lName).data.length / 2;
 				int negativeTrainingSize = -positiveTrainingSize;
 				for (ConvolvedData cd : lToCData.values()) {
-					negativeTrainingSize += cd.data.length / 2;
+					negativeTrainingSize += args[0].equals("train")
+							? cd.data.length
+							: cd.data.length / 2;
 				}
 				double[][] trainingPos = new double[positiveTrainingSize][0];
 				System.arraycopy(lToCData.get(lName).data, 0, trainingPos, 0, trainingPos.length);
@@ -244,8 +247,12 @@ public class MicroNet {
 				for (String lName2 : lToCData.keySet()) {
 					if (lName2.equals(lName)) { continue; }
 					System.arraycopy(lToCData.get(lName2).data, 0, trainingNeg, offset,
-							lToCData.get(lName2).data.length / 2);
-					offset += lToCData.get(lName2).data.length / 2;
+							args[0].equals("train")
+							? lToCData.get(lName2).data.length
+							: lToCData.get(lName2).data.length / 2);
+					offset += args[0].equals("train")
+							? lToCData.get(lName2).data.length
+							: lToCData.get(lName2).data.length / 2;
 				}
 
 				MicroNetwork mn = new MicroNetwork();
