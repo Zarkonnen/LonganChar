@@ -12,7 +12,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -20,7 +19,7 @@ import java.util.Map;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class MicroNet {
+public class UniNet {
 	static final double[][][] kernels = {
 		// Identity
 		{
@@ -42,10 +41,22 @@ public class MicroNet {
 		},
 	};
 	
-	static class ConvolvedData {
-		public double[][] data;
+	static class Example {
+		public String letter;
+		public double[] input;
+		public double[] target;
 
-		public ConvolvedData(double[][] data) {
+		public Example(String letter, double[] input, double[] target) {
+			this.letter = letter;
+			this.input = input;
+			this.target = target;
+		}
+	}
+	
+	static class DoubleArray {
+		double[] data;
+
+		public DoubleArray(double[] data) {
 			this.data = data;
 		}
 	}
@@ -56,16 +67,6 @@ public class MicroNet {
 		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
-	
-	static class LetterRecord {
-		BufferedImage img;
-		double size = 1.0;
-		double offset = 0.0;
-
-		public LetterRecord(BufferedImage img) {
-			this.img = img;
-		}
-	}
 	
 	static String letterToFilename(String l) {
 		return
@@ -89,6 +90,7 @@ public class MicroNet {
 		HashMap<String, ArrayList<Double>> offsetLists = new HashMap<String, ArrayList<Double>>();
 		HashMap<String, HashMap<String, Double>> sizes = new HashMap<String, HashMap<String, Double>>();
 		HashMap<String, ArrayList<Double>> sizeLists = new HashMap<String, ArrayList<Double>>();
+		HashMap<String, DoubleArray> targets = new HashMap<String, DoubleArray>();
 		
 		for (String s : LETTERS) {
 			HashMap<String, Double> os = new HashMap<String, Double>();
@@ -116,18 +118,20 @@ public class MicroNet {
 			sizes.put(letterToFilename(s), ss);
 			sizeLists.put(letterToFilename(s), sL);
 			r.close();
+			
+			targets.put(letterToFilename(s),
+				new DoubleArray(getOutputForNN(
+					ImageIO.read(new File(new File(args[2]), letterToFilename(s) + ".png"))
+				))
+			);
 		}
-		System.out.println("Loaded offsets and sizes.");
+		System.out.println("Loaded offsets, sizes and targets.");
 		
-		/*for (int i = 0; i < args.length; i++) {
-			bExFolders.add(new File(args[i]));
-		}*/
 		for (String s : LETTERS) {
 			bExFolders.add(new File(new File(args[1]), letterToFilename(s)));
 		}
 		
-		HashMap<String, ArrayList<LetterRecord>> lToEx =
-				new HashMap<String, ArrayList<LetterRecord>>();
+		ArrayList<Example> examples = new ArrayList<Example>();
 		
 		for (File fol : bExFolders) {
 			if (fol.listFiles() == null) {
@@ -138,153 +142,113 @@ public class MicroNet {
 				System.out.println(fol + " doesn't have enough data");
 				continue;
 			}
-			ArrayList<LetterRecord> exs = new ArrayList<LetterRecord>();
-			lToEx.put(fol.getName(), exs);
+			int nForThisLetter = 0;
 			for (File f : fol.listFiles()) {
-				if (exs.size() >= 200) { break; }
+				if (nForThisLetter++ >= 200) { break; }
 				if (f.getName().endsWith(".png")) {
 					try {
-						LetterRecord lr = new LetterRecord(ImageIO.read(f));
+						BufferedImage img = ImageIO.read(f);
+						double offset = 0.0;
+						double size = 1.0;
 						String num = f.getName().substring(0, f.getName().length() - 4);
 						if (offsets.get(fol.getName()).containsKey(num)) {
-							lr.offset = offsets.get(fol.getName()).get(num);
+							offset = offsets.get(fol.getName()).get(num);
 						} else {
-							lr.offset = offsetLists.get(fol.getName()).get(
+							offset = offsetLists.get(fol.getName()).get(
 									rnd.nextInt(offsetLists.get(fol.getName()).size()));
 						}
 						if (sizes.get(fol.getName()).containsKey(num)) {
-							lr.size = sizes.get(fol.getName()).get(num);
+							size = sizes.get(fol.getName()).get(num);
 						} else {
-							lr.size = sizeLists.get(fol.getName()).get(
+							size = sizeLists.get(fol.getName()).get(
 									rnd.nextInt(sizeLists.get(fol.getName()).size()));
 						}
-						exs.add(lr);
+						
+						examples.add(new Example(fol.getName(),
+								getInputForNN(img, size, offset), targets.get(fol.getName()).data));
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
 				}
 			}
-			Collections.shuffle(exs);
 		}
-		
-		System.out.println("Loaded images");
-		
-		HashMap<String, ConvolvedData> lToCData = new HashMap<String, ConvolvedData>();
-		for (Map.Entry<String, ArrayList<LetterRecord>> w : lToEx.entrySet()) {
-			ArrayList<LetterRecord> exs = w.getValue();
-			double[][] data = new double[exs.size()][0];
-			for (int i = 0; i < data.length; i++) {
-				data[i] = getInputForNN(exs.get(i));
-			}
-			lToCData.put(w.getKey(), new ConvolvedData(data));
-			w.setValue(new ArrayList<LetterRecord>(0)); // Free up memory
-		}
-		
-		lToEx = null; // For GC
-		
-		System.out.println("Convolved data");
-				
-		HashMap<String, MicroNetwork> networks = new HashMap<String, MicroNetwork>();
-		
-		if (args[0].equals("train") || args[0].equals("trainAndTest")) {
-			for (String lName : lToCData.keySet()) {
-				int positiveTrainingSize = args[0].equals("train")
-						? lToCData.get(lName).data.length
-						: lToCData.get(lName).data.length / 2;
-				int negativeTrainingSize = -positiveTrainingSize;
-				for (ConvolvedData cd : lToCData.values()) {
-					negativeTrainingSize += args[0].equals("train")
-							? cd.data.length
-							: cd.data.length / 2;
-				}
-				double[][] trainingPos = new double[positiveTrainingSize][0];
-				System.arraycopy(lToCData.get(lName).data, 0, trainingPos, 0, trainingPos.length);
-				double[][] trainingNeg = new double[negativeTrainingSize][0];
-				int offset = 0;
-				for (String lName2 : lToCData.keySet()) {
-					if (lName2.equals(lName)) { continue; }
-					System.arraycopy(lToCData.get(lName2).data, 0, trainingNeg, offset,
-							args[0].equals("train")
-							? lToCData.get(lName2).data.length
-							: lToCData.get(lName2).data.length / 2);
-					offset += args[0].equals("train")
-							? lToCData.get(lName2).data.length
-							: lToCData.get(lName2).data.length / 2;
-				}
+		Collections.shuffle(examples);
 
-				MicroNetwork mn = new MicroNetwork();
-				System.out.println("Created MN for " + lName);
-				for (int i = 0; i < 3; i++) {
-					mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
-					System.out.println("pass " + (i + 1) + " complete");
+		
+		System.out.println("Loaded images and convolved data.");
+		
+		UniNetwork network = new UniNetwork();
+		
+		if (args[0].startsWith("train")) {
+			for (int rep = 0; rep < 3; rep++) {
+				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
+				for (int i = 0; i < to; i++) {
+					network.train(examples.get(i), 0.001, 0.0002);
+					if (i % 100 == 0) {
+						System.out.println(i);
+					}
 				}
-
-				System.out.println("Trained MN for " + lName);
-				networks.put(lName, mn);
 			}
+			System.out.println("Network trained.");
 		} else {
-			for (String lName : lToCData.keySet()) {
-				FileInputStream fis = new FileInputStream(new File(new File(args[2]), lName));
-				MicroNetwork mn = new MicroNetwork();
-				NetworkIO.input(mn.nw, fis);
-				fis.close();
-				System.out.println("Loaded MN for " + lName);
-				networks.put(lName, mn);
-			}
+			FileInputStream fis = new FileInputStream(new File(args[3]));
+			NetworkIO.input(network.nw, fis);
+			fis.close();
+			System.out.println("Loaded network.");
 		}
 		
 		if (args[0].equals("train")) {
-			for (String lName : networks.keySet()) {
-				FileOutputStream fos = new FileOutputStream(new File(new File(args[2]), lName));
-				NetworkIO.output(networks.get(lName).nw, fos);
-				fos.close();
-			}
+			FileOutputStream fos = new FileOutputStream(new File(args[3]));
+			NetworkIO.output(network.nw, fos);
+			fos.close();
 			return;
 		}
 		
 		System.out.println("Testing");
 		int hits = 0;
 		int misses = 0;
-		for (String lName : lToCData.keySet()) {
-			ConvolvedData cd = lToCData.get(lName);
-			//System.out.println(lName + cd.data.length);
-			for (int i = cd.data.length / 2 + 1; i < cd.data.length; i++) {
-				//System.out.println(i);
-				String bestScoringLetter = null;
-				double bestScore = -100;
-				double scoreForCorrectLetter = 0;
-				for (Map.Entry<String, MicroNetwork> e : networks.entrySet()) {
-					double score = e.getValue().run(cd.data[i]);
-					if (bestScoringLetter == null || score > bestScore) {
-						bestScoringLetter = e.getKey();
-						bestScore = score;
-					}
-					if (e.getKey().equals(lName)) {
-						scoreForCorrectLetter = score;
-					}
+		
+		for (int i = examples.size() / 2; i < examples.size(); i++) {
+			Example example = examples.get(i);
+			String bestScoringLetter = null;
+			double leastError = 1000000;
+			double errorForCorrectLetter = -1;
+			for (Map.Entry<String, DoubleArray> t : targets.entrySet()) {
+				double[] result = network.run(example.input);
+				double[] target = t.getValue().data;
+				double error = 0.0;
+				for (int j = 0; j < result.length; j++) {
+					error += (result[j] - target[j]) * (result[j] - target[j]);
+				}
+				if (bestScoringLetter == null || error < leastError) {
+					bestScoringLetter = t.getKey();
+					leastError = error;
+				}
+				if (example.letter.equals(t.getKey())) {
+					errorForCorrectLetter = error;
 				}
 				
-				if (bestScoringLetter.equals(lName) ||
-					(bestScoringLetter + "-uc").equals(lName) ||
-					bestScoringLetter.equals(lName + "-uc"))
+				if (bestScoringLetter.equals(example.letter) ||
+					(bestScoringLetter + "-uc").equals(example.letter) ||
+					bestScoringLetter.equals(example.letter + "-uc"))
 				{
 					hits++;
 				} else {
-					System.out.println("Mis-identified " + lName + " " + i + " as " +
-							bestScoringLetter + " with a score of " + bestScore + " vs " +
-							scoreForCorrectLetter + ".");
+					System.out.println("Mis-identified " + example.letter + " as " +
+							bestScoringLetter + " with an error of " + leastError + " vs " +
+							errorForCorrectLetter + ".");
 					misses++;
 				}
 			}
 		}
+		
 		System.out.println("Hits: " + hits);
 		System.out.println("Misses: " + misses);
 		
 		ps.close();
 	}
 	
-	static double[] getInputForNN(LetterRecord lr) {
-		BufferedImage src = lr.img;
+	static double[] getInputForNN(BufferedImage src, double size, double offset) {
 		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
@@ -300,9 +264,23 @@ public class MicroNet {
 				}
 			} }
 		} }
+		for (int i = 0; i < 144; i++) {
+			result[i] = result[i] * 2 - 1;
+		}
 		result[result.length - 3] = Math.log(src.getWidth() / ((double) src.getHeight())) * 2;
-		result[result.length - 2] = Math.log(lr.size) * 2;
-		result[result.length - 1] = lr.offset * 5;
+		result[result.length - 2] = Math.log(size) * 2;
+		result[result.length - 1] = offset * 5;
+		return result;
+	}
+	
+	static double[] getOutputForNN(BufferedImage img) {
+		double[] result = new double[9 * 5];
+		for (int y = 0; y < 9; y++) {
+			for (int x = 0; x < 5; x++) {
+				Color c = new Color(img.getRGB(x, y));
+				result[y * 5 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
+			}
+		}
 		return result;
 	}
 }
