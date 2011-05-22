@@ -15,13 +15,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class UniNet {
-	static final int NUM_NETWORKS = 3;
-	
+public class UniNet2 {
 	static final double[][][] kernels = {
 		// Identity
 		{
@@ -69,7 +66,7 @@ public class UniNet {
 		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
-	
+		
 	static String letterToFilename(String l) {
 		return
 				l.equals(".")
@@ -94,6 +91,7 @@ public class UniNet {
 		HashMap<String, ArrayList<Double>> sizeLists = new HashMap<String, ArrayList<Double>>();
 		HashMap<String, DoubleArray> targets = new HashMap<String, DoubleArray>();
 		
+		int lIndex = 0;
 		for (String s : LETTERS) {
 			HashMap<String, Double> os = new HashMap<String, Double>();
 			ArrayList<Double> osL = new ArrayList<Double>();
@@ -121,10 +119,11 @@ public class UniNet {
 			sizeLists.put(letterToFilename(s), sL);
 			r.close();
 			
+			
+			double[] target = new double[LETTERS.length];
+			target[lIndex++] = 1.0;
 			targets.put(letterToFilename(s),
-				new DoubleArray(getOutputForNN(
-					ImageIO.read(new File(new File(args[2]), letterToFilename(s) + ".png"))
-				))
+				new DoubleArray(target)
 			);
 		}
 		System.out.println("Loaded offsets, sizes and targets.");
@@ -179,25 +178,10 @@ public class UniNet {
 		
 		System.out.println("Loaded images and convolved data.");
 		
-		ArrayList<UniNetwork> networks = new ArrayList<UniNetwork>();
+		UniNetwork2 network = new UniNetwork2();
 		
-		ArrayList<Example> training = new ArrayList<Example>(examples.size() / 2);
-		training.addAll(examples.subList(0, examples.size() / 2));
-	
-		for (int n = 0; n < NUM_NETWORKS; n++) {
-			UniNetwork network = new UniNetwork();
-			networks.add(network);
-			for (int rep = 0; rep < 10; rep++) {
-				Collections.shuffle(training);
-				for (Example e : training) {
-					network.train(e, 0.001, 0.0002);
-				}
-			}
-			System.out.println("Network trained.");
-		}
-		
-		/*if (args[0].startsWith("train")) {
-			for (int rep = 0; rep < 10; rep++) {
+		if (args[0].startsWith("train")) {
+			for (int rep = 0; rep < 4; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
 				for (int i = 0; i < to; i++) {
 					network.train(examples.get(i), 0.001, 0.0002);
@@ -219,7 +203,7 @@ public class UniNet {
 			NetworkIO.output(network.nw, fos);
 			fos.close();
 			return;
-		}*/
+		}
 		
 		System.out.println("Testing");
 		int hits = 0;
@@ -227,21 +211,16 @@ public class UniNet {
 		
 		for (int i = examples.size() / 2; i < examples.size(); i++) {
 			Example example = examples.get(i);
-			String bestScoringLetter = null;
+			double[] result = network.run(example.input);
+			/*String bestScoringLetter = null;
 			double leastError = 1000000;
 			double errorForCorrectLetter = -1;
-			//double[] result = network.run(example.input);
-			double[][] result = new double[NUM_NETWORKS][0];
-			for (int r = 0; r < NUM_NETWORKS; r++) {
-				result[r] = networks.get(r).run(example.input);
-			}
+			double[] result = network.run(example.input);
 			for (Map.Entry<String, DoubleArray> t : targets.entrySet()) {
 				double[] target = t.getValue().data;
 				double error = 0.0;
-				for (int r = 0; r < NUM_NETWORKS; r++) {
-					for (int j = 0; j < result.length; j++) {
-						error += (result[r][j] - target[j]) * (result[r][j] - target[j]);
-					}
+				for (int j = 0; j < result.length; j++) {
+					error += (result[j] - target[j]) * (result[j] - target[j]);
 				}
 				if (bestScoringLetter == null || error < leastError) {
 					bestScoringLetter = t.getKey();
@@ -250,7 +229,21 @@ public class UniNet {
 				if (example.letter.equals(t.getKey())) {
 					errorForCorrectLetter = error;
 				}
+			}*/
+			int bestIndex = -1;
+			double bestScore = 0;
+			double scoreForCorrectLetter = 0;
+			for (int j = 0; j < result.length; j++) {
+				if (bestIndex == -1 || bestScore < result[j]) {
+					bestIndex = j;
+					bestScore = result[j];
+				}
+				if (letterToFilename(LETTERS[j]).equals(example.letter)) {
+					scoreForCorrectLetter = result[j];
+				}
 			}
+						
+			String bestScoringLetter = LETTERS[bestIndex];
 			
 			if (bestScoringLetter.equals(example.letter) ||
 				(bestScoringLetter + "-uc").equals(example.letter) ||
@@ -259,8 +252,8 @@ public class UniNet {
 				hits++;
 			} else {
 				System.out.println("Mis-identified " + example.letter + " as " +
-						bestScoringLetter + " with an error of " + leastError + " vs " +
-						errorForCorrectLetter + ".");
+						bestScoringLetter + " with a score of " + bestScore + " vs " +
+						scoreForCorrectLetter + ".");
 				misses++;
 			}
 		}
@@ -287,23 +280,9 @@ public class UniNet {
 				}
 			} }
 		} }
-		for (int i = 0; i < 144; i++) {
-			result[i] = result[i] * 2 - 1;
-		}
 		result[result.length - 3] = Math.log(src.getWidth() / ((double) src.getHeight())) * 2;
 		result[result.length - 2] = Math.log(size) * 2;
 		result[result.length - 1] = offset * 5;
-		return result;
-	}
-	
-	static double[] getOutputForNN(BufferedImage img) {
-		double[] result = new double[9 * 5];
-		for (int y = 0; y < 9; y++) {
-			for (int x = 0; x < 5; x++) {
-				Color c = new Color(img.getRGB(x, y));
-				result[y * 5 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
-			}
-		}
 		return result;
 	}
 }

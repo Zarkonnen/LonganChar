@@ -20,7 +20,30 @@ import java.util.Map;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class ConvNet {
+public class DemoNet {
+	static final int NUM_NETWORKS = 7;
+	
+	static final double[][][] kernels = {
+		// Identity
+		{
+			{ 0,  0,  0 },
+			{ 0,  1,  0 },
+			{ 0,  0,  0 }
+		},
+		// c/o detector (vgap)
+		{
+			{-1,  4, -1 },
+			{-1, -2, -1 },
+			{-1,  4, -1 }
+		},
+		// weird-ass kernel
+		{
+			{-2,  4,  2 },
+			{-4,  0,  4 },
+			{ 2, -4, -2 }
+		},
+	};
+	
 	static class ConvolvedData {
 		public double[][] data;
 
@@ -98,6 +121,9 @@ public class ConvNet {
 		}
 		System.out.println("Loaded offsets and sizes.");
 		
+		/*for (int i = 0; i < args.length; i++) {
+			bExFolders.add(new File(args[i]));
+		}*/
 		for (String s : LETTERS) {
 			bExFolders.add(new File(new File(args[1]), letterToFilename(s)));
 		}
@@ -160,7 +186,7 @@ public class ConvNet {
 		
 		System.out.println("Convolved data");
 				
-		HashMap<String, ConvNetwork> networks = new HashMap<String, ConvNetwork>();
+		HashMap<String, ArrayList<NanoNetwork>> networks = new HashMap<String, ArrayList<NanoNetwork>>();
 		
 		if (args[0].equals("train") || args[0].equals("trainAndTest")) {
 			for (String lName : lToCData.keySet()) {
@@ -188,32 +214,43 @@ public class ConvNet {
 							: lToCData.get(lName2).data.length / 2;
 				}
 
-				ConvNetwork mn = new ConvNetwork();
-				System.out.println("Created CN for " + lName);
-				for (int i = 0; i < 3; i++) {
-					mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
-					System.out.println("pass " + (i + 1) + " complete");
-				}
+				ArrayList<NanoNetwork> mns = new ArrayList<NanoNetwork>();
+				for (int n = 0; n < NUM_NETWORKS; n++) {
+					NanoNetwork mn = new NanoNetwork(n);
+					System.out.println("Created MN for " + lName);
+					// Shuffle?
+					for (int i = 0; i < 3; i++) {
+						mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
+						System.out.println("pass " + (i + 1) + " complete");
+					}
 
-				System.out.println("Trained CN for " + lName);
-				networks.put(lName, mn);
+					System.out.println("Trained MN for " + lName);
+					mns.add(mn);
+				}
+				networks.put(lName, mns);
 			}
 		} else {
 			for (String lName : lToCData.keySet()) {
-				FileInputStream fis = new FileInputStream(new File(new File(args[2]), lName));
-				ConvNetwork cn = new ConvNetwork();
-				NetworkIO.input(cn.nw, fis);
-				fis.close();
-				System.out.println("Loaded CN for " + lName);
-				networks.put(lName, cn);
+				ArrayList<NanoNetwork> mns = new ArrayList<NanoNetwork>();
+				for (int n = 0; n < NUM_NETWORKS; n++) {
+					FileInputStream fis = new FileInputStream(new File(new File(args[2]), lName));
+					NanoNetwork mn = new NanoNetwork(n);
+					NetworkIO.input(mn.nw, fis);
+					fis.close();
+					System.out.println("Loaded MN for " + lName);
+					mns.add(mn);
+				}
+				networks.put(lName, mns);
 			}
 		}
 		
 		if (args[0].equals("train")) {
 			for (String lName : networks.keySet()) {
-				FileOutputStream fos = new FileOutputStream(new File(new File(args[2]), lName));
-				NetworkIO.output(networks.get(lName).nw, fos);
-				fos.close();
+				for (int n = 0; n < NUM_NETWORKS; n++) {
+					FileOutputStream fos = new FileOutputStream(new File(new File(args[2]), lName + "-" + n));
+					NetworkIO.output(networks.get(lName).get(n).nw, fos);
+					fos.close();
+				}
 			}
 			return;
 		}
@@ -229,8 +266,13 @@ public class ConvNet {
 				String bestScoringLetter = null;
 				double bestScore = -100;
 				double scoreForCorrectLetter = 0;
-				for (Map.Entry<String, ConvNetwork> e : networks.entrySet()) {
-					double score = e.getValue().run(cd.data[i]);
+				for (Map.Entry<String, ArrayList<NanoNetwork>> e : networks.entrySet()) {
+					double[] results = new double[NUM_NETWORKS];
+					for (int n = 0; n < NUM_NETWORKS; n++) {
+						results[n] = e.getValue().get(n).run(cd.data[i]);
+					}
+					Arrays.sort(results);
+					double score = results[NUM_NETWORKS / 2];
 					if (bestScoringLetter == null || score > bestScore) {
 						bestScoringLetter = e.getKey();
 						bestScore = score;
@@ -261,16 +303,24 @@ public class ConvNet {
 	
 	static double[] getInputForNN(LetterRecord lr) {
 		BufferedImage src = lr.img;
-		BufferedImage scaledSrc = new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB);
+		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.drawImage(src, 3, 3, 13, 13, 0, 0, src.getWidth(), src.getHeight(), null);
+		g.drawImage(src, 2, 2, 12, 12, 0, 0, src.getWidth(), src.getHeight(), null);
 		src = scaledSrc;
-		double[] result = new double[16 * 16];
-		for (int y = 0; y < 16; y++) { for (int x = 0; x < 16; x++) {
-			Color c = new Color(src.getRGB(x, y));
-			result[y * 16 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 3.0;
-		}}
+		double[] result = new double[kernels.length * 12 * 12 + 3];
+		for (int y = 0; y < 12; y++) { for (int x = 0; x < 12; x++) {
+			for (int kdy = 0; kdy < 3; kdy++) { for (int kdx = 0; kdx < 3; kdx++) {
+				Color c = new Color(src.getRGB(x + kdx, y + kdy));
+				double intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 3.0;
+				for (int k = 0; k < kernels.length; k++) {
+					result[k * 144 + y * 12 + x] += intensity * kernels[k][kdy][kdx];
+				}
+			} }
+		} }
+		result[result.length - 3] = Math.log(src.getWidth() / ((double) src.getHeight())) * 2;
+		result[result.length - 2] = Math.log(lr.size) * 2;
+		result[result.length - 1] = lr.offset * 5;
 		return result;
 	}
 }

@@ -5,11 +5,11 @@ import java.util.Random;
 
 import static lenet5.Util.*;
 
-public class UniNetwork {
+public class UniNetwork2 {
 	Network nw;
 	Random r = new Random();
 	
-	public UniNetwork() {
+	public UniNetwork2() {
 		Layer input = new Layer("Input");
 		for (int i = 0; i < 12 * 12 * UniNet.kernels.length + 3; i++) {
 			input.nodes.add(new Node("input " + i));
@@ -26,15 +26,13 @@ public class UniNetwork {
 		
 		// 2nd hidden layer
 		Layer h2 = new Layer("Hidden 2");
-		for (int i = 0; i < 9 * 5 * 11; i++) {
+		for (int i = 0; i < UniNet2.LETTERS.length * 7; i++) {
 			h2.nodes.add(new Node("h2 " + i));
 		}
 		
 		Layer output = new Layer("Output");
-		for (int y = 0; y < 9; y++) {
-			for (int x = 0; x < 5; x++) {
-				output.nodes.add(new Node("output " + y + "/" + x));
-			}
+		for (int i = 0; i < UniNet2.LETTERS.length; i++) {
+			output.nodes.add(new Node("output " + i));
 		}
 		
 		// Connect input to h1
@@ -116,7 +114,7 @@ public class UniNetwork {
 		nw = new Network(layers);
 	}
 	
-	public void train(UniNet.Example ex, double n, double m) {
+	public void train(UniNet2.Example ex, double n, double m) {
 		nw.train(ex.input, ex.target, n, m);
 		/*
 		int to = Math.max(positives.length, negatives.length);

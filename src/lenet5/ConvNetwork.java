@@ -6,15 +6,42 @@ import java.util.Random;
 import static lenet5.Util.*;
 
 public class ConvNetwork {
+	static final double[][][] kernels = {
+		// Identity
+		{
+			{ 0,  0,  0,  0,  0 },
+			{ 0,  0,  0,  0,  0 },
+			{ 0,  0,  1,  0,  0 },
+			{ 0,  0,  0,  0,  0 },
+			{ 0,  0,  0,  0,  0 },
+		},
+		// c/o detector (vgap)
+			{
+			{ 0,  0,  0,  0,  0 },
+			{ 0, -1,  4, -1,  0 },
+			{ 0, -1, -2, -1,  0 },
+			{ 0, -1,  4, -1,  0 },
+			{ 0,  0,  0,  0,  0 },
+		},
+		// weird-ass kernel
+		{
+			{ 0,  0,  0,  0,  0 },
+			{ 0, -2,  4,  2,  0 },
+			{ 0, -4,  0,  4,  0 },
+			{ 0,  2, -4, -2,  0 },
+			{ 0,  0,  0,  0,  0 },
+		},
+	};
+	
 	Network nw;
 	Random r = new Random();
 	
-	static final int MAPS = 4;
+	static final int MAPS = 6;
 	
 	public ConvNetwork() {
 		Layer input = new Layer("Input");
-		for (int y = 0; y < 14; y++) {
-			for (int x = 0; x < 14; x++) {
+		for (int y = 0; y < 16; y++) {
+			for (int x = 0; x < 16; x++) {
 				input.nodes.add(new Node("input " + y + "/" + x));
 			}
 		}
@@ -48,15 +75,20 @@ public class ConvNetwork {
 		
 		// Wire up input layer to convolution layer.
 		for (int m = 0; m < MAPS; m++) {
-			for (int mapY = 0; mapY < 3; mapY++) {
-				for (int mapX = 0; mapX < 3; mapX++) {
-					Weight w = new Weight(rnd(-1.0, 1.0));
+			for (int mapY = 0; mapY < 5; mapY++) {
+				for (int mapX = 0; mapX < 5; mapX++) {
+					Weight w = null;
+					if (m < kernels.length) {
+						w = new Weight(kernels[m][mapY][mapX]);
+					} else {
+						w = new Weight(rnd(-1.0, 1.0));
+					}
 					input.weights.add(w);
 					for (int convY = 0; convY < 12; convY++) {
 						for (int convX = 0; convX < 12; convX++) {
 							ArrayList<Node> inputs = new ArrayList<Node>();
 							inputs.add(input.nodes.get(
-								(convY + mapY) * 14 +
+								(convY + mapY) * 16 +
 								(convX + mapX)
 							));
 							new Connection(inputs,
