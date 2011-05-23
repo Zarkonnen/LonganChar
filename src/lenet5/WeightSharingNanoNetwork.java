@@ -1,15 +1,16 @@
 package lenet5;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 import static lenet5.Util.*;
 
-public class NanoNetwork {
+public class WeightSharingNanoNetwork {
 	Network nw;
 	Random r = new Random();
 	
-	public NanoNetwork(int variant) {
+	public WeightSharingNanoNetwork(int variant) {
 		Layer input = new Layer("Input");
 		for (int i = 0; i < 12 * 12 * DemoNet.kernels.length + 3; i++) {
 			input.nodes.add(new Node("input " + i));
@@ -20,27 +21,44 @@ public class NanoNetwork {
 		//input.nodes.add(biasN);*/
 		
 		Layer hidden = new Layer("Hidden");
-		for (int i = 0; i < 17; i++) {
+		for (int i = 0; i < 16; i++) {
 			hidden.nodes.add(new Node("hidden " + i));
 		}
 		
 		// 2nd hidden layer
 		Layer h2 = new Layer("Hidden 2");
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 7; i++) {
 			h2.nodes.add(new Node("h2 " + i));
 		}
 		
 		Layer output = new Layer("Output");
 		output.nodes.add(new Node("output"));
 		
+		HashMap<String, Weight> offsetToWeight = new HashMap<String, Weight>();
 		int iNum = 0;
 		for (Node iN : input.nodes) {
+			int inY = iNum / 12;
+			int inX = iNum % 12;
 			iNum++;
 			int hNum = 0;
 			for (Node hN : hidden.nodes) {
+				int hY = (hNum / 4) * 2 + 1;
+				int hX = (hNum % 4) * 2 + 1;
+				String offset = null;
+				if (iNum >= 12 * 12 * DemoNet.kernels.length) {
+					offset = "special " + iNum;
+				} else {
+					offset = (inY - hY) + "/" + (inX - hX);
+				}
 				hNum++;
-				Weight w = new Weight(rnd(-0.2, 0.2));
-				input.weights.add(w);
+				Weight w;
+				if (offsetToWeight.containsKey(offset)) {
+					w = offsetToWeight.get(offset);
+				} else {
+					w = new Weight(rnd(-0.2, 0.2));
+					offsetToWeight.put(offset, w);
+					input.weights.add(w);
+				}
 				ArrayList<Node> inputs = new ArrayList<Node>();
 				inputs.add(iN);
 				if (iNum / 144 != hNum / (2 + variant) && (iNum + hNum + variant) % 4 == 0) {

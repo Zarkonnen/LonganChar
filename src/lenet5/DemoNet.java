@@ -186,7 +186,9 @@ public class DemoNet {
 		
 		System.out.println("Convolved data");
 				
-		HashMap<String, ArrayList<NanoNetwork>> networks = new HashMap<String, ArrayList<NanoNetwork>>();
+		HashMap<String, ArrayList<WeightSharingNanoNetwork>> networks = new HashMap<String, ArrayList<WeightSharingNanoNetwork>>();
+		
+		int total = 0;
 		
 		if (args[0].equals("train") || args[0].equals("trainAndTest")) {
 			for (String lName : lToCData.keySet()) {
@@ -214,9 +216,9 @@ public class DemoNet {
 							: lToCData.get(lName2).data.length / 2;
 				}
 
-				ArrayList<NanoNetwork> mns = new ArrayList<NanoNetwork>();
+				ArrayList<WeightSharingNanoNetwork> mns = new ArrayList<WeightSharingNanoNetwork>();
 				for (int n = 0; n < NUM_NETWORKS; n++) {
-					NanoNetwork mn = new NanoNetwork(n);
+					WeightSharingNanoNetwork mn = new WeightSharingNanoNetwork(n);
 					System.out.println("Created MN for " + lName);
 					// Shuffle?
 					for (int i = 0; i < 3; i++) {
@@ -225,16 +227,18 @@ public class DemoNet {
 					}
 
 					System.out.println("Trained MN for " + lName);
+					System.out.println(mn.nw.numNodes() + " nodes, " + mn.nw.numWeights() + " weights");
+					System.out.println(++total + " of " + LETTERS.length * NUM_NETWORKS);
 					mns.add(mn);
 				}
 				networks.put(lName, mns);
 			}
 		} else {
 			for (String lName : lToCData.keySet()) {
-				ArrayList<NanoNetwork> mns = new ArrayList<NanoNetwork>();
+				ArrayList<WeightSharingNanoNetwork> mns = new ArrayList<WeightSharingNanoNetwork>();
 				for (int n = 0; n < NUM_NETWORKS; n++) {
 					FileInputStream fis = new FileInputStream(new File(new File(args[2]), lName));
-					NanoNetwork mn = new NanoNetwork(n);
+					WeightSharingNanoNetwork mn = new WeightSharingNanoNetwork(n);
 					NetworkIO.input(mn.nw, fis);
 					fis.close();
 					System.out.println("Loaded MN for " + lName);
@@ -266,7 +270,7 @@ public class DemoNet {
 				String bestScoringLetter = null;
 				double bestScore = -100;
 				double scoreForCorrectLetter = 0;
-				for (Map.Entry<String, ArrayList<NanoNetwork>> e : networks.entrySet()) {
+				for (Map.Entry<String, ArrayList<WeightSharingNanoNetwork>> e : networks.entrySet()) {
 					double[] results = new double[NUM_NETWORKS];
 					for (int n = 0; n < NUM_NETWORKS; n++) {
 						results[n] = e.getValue().get(n).run(cd.data[i]);

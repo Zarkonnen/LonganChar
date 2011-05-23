@@ -83,4 +83,20 @@ public class Network {
 		}
 		return d;
 	}
+	
+	public int numWeights() {
+		int n = 0;
+		for (Layer l : layers) {
+			n += l.weights.size();
+		}
+		return n;
+	}
+	
+	public int numNodes() {
+		int n = 0;
+		for (Layer l : layers) {
+			n += l.nodes.size();
+		}
+		return n;
+	}
 }
