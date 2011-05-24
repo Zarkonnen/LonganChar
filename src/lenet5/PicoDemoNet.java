@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class DemoNet {
-	static final int NUM_NETWORKS = 7;
+public class PicoDemoNet {
+	static final int NUM_NETWORKS = 11;
 	
 	static final double[][][] kernels = {
 		// Identity
@@ -29,12 +29,6 @@ public class DemoNet {
 			{ 0,  0,  0 },
 			{ 0,  1,  0 },
 			{ 0,  0,  0 }
-		},
-		// c/o detector (vgap)
-		{
-			{-1,  4, -1 },
-			{-1, -2, -1 },
-			{-1,  4, -1 }
 		},
 		// weird-ass kernel
 		{
@@ -186,7 +180,7 @@ public class DemoNet {
 		
 		System.out.println("Convolved data");
 				
-		HashMap<String, ArrayList<WeightSharingNanoNetwork>> networks = new HashMap<String, ArrayList<WeightSharingNanoNetwork>>();
+		HashMap<String, ArrayList<WeightSharingPicoNetwork>> networks = new HashMap<String, ArrayList<WeightSharingPicoNetwork>>();
 		
 		int total = 0;
 		
@@ -216,9 +210,9 @@ public class DemoNet {
 							: lToCData.get(lName2).data.length / 2;
 				}
 
-				ArrayList<WeightSharingNanoNetwork> mns = new ArrayList<WeightSharingNanoNetwork>();
+				ArrayList<WeightSharingPicoNetwork> mns = new ArrayList<WeightSharingPicoNetwork>();
 				for (int n = 0; n < NUM_NETWORKS; n++) {
-					WeightSharingNanoNetwork mn = new WeightSharingNanoNetwork(n);
+					WeightSharingPicoNetwork mn = new WeightSharingPicoNetwork(n);
 					System.out.println("Created MN for " + lName);
 					// Shuffle?
 					for (int i = 0; i < 3; i++) {
@@ -235,10 +229,10 @@ public class DemoNet {
 			}
 		} else {
 			for (String lName : lToCData.keySet()) {
-				ArrayList<WeightSharingNanoNetwork> mns = new ArrayList<WeightSharingNanoNetwork>();
+				ArrayList<WeightSharingPicoNetwork> mns = new ArrayList<WeightSharingPicoNetwork>();
 				for (int n = 0; n < NUM_NETWORKS; n++) {
 					FileInputStream fis = new FileInputStream(new File(new File(args[2]), lName + "-" + n));
-					WeightSharingNanoNetwork mn = new WeightSharingNanoNetwork(n);
+					WeightSharingPicoNetwork mn = new WeightSharingPicoNetwork(n);
 					NetworkIO.input(mn.nw, fis);
 					fis.close();
 					System.out.println("Loaded MN for " + lName);
@@ -270,7 +264,7 @@ public class DemoNet {
 				String bestScoringLetter = null;
 				double bestScore = -100;
 				double scoreForCorrectLetter = 0;
-				for (Map.Entry<String, ArrayList<WeightSharingNanoNetwork>> e : networks.entrySet()) {
+				for (Map.Entry<String, ArrayList<WeightSharingPicoNetwork>> e : networks.entrySet()) {
 					double[] results = new double[NUM_NETWORKS];
 					for (int n = 0; n < NUM_NETWORKS; n++) {
 						results[n] = e.getValue().get(n).run(cd.data[i]);
@@ -307,23 +301,18 @@ public class DemoNet {
 	
 	static double[] getInputForNN(LetterRecord lr) {
 		BufferedImage src = lr.img;
-		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
+		BufferedImage scaledSrc = new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.fillRect(0, 0, 14, 14);
-		g.drawImage(src, 2, 2, 12, 12, 0, 0, src.getWidth(), src.getHeight(), null);
-		/*try {
-			ImageIO.write(scaledSrc, "png", new File("/Users/zar/Desktop/img.png"));
-		} catch (Exception e) {}
-		System.exit(0);*/
+		g.drawImage(src, 1, 1, 9, 9, 0, 0, src.getWidth(), src.getHeight(), null);
 		src = scaledSrc;
-		double[] result = new double[kernels.length * 12 * 12 + 3];
-		for (int y = 0; y < 12; y++) { for (int x = 0; x < 12; x++) {
+		double[] result = new double[kernels.length * 8 * 8 + 3];
+		for (int y = 0; y < 8; y++) { for (int x = 0; x < 8; x++) {
 			for (int kdy = 0; kdy < 3; kdy++) { for (int kdx = 0; kdx < 3; kdx++) {
 				Color c = new Color(src.getRGB(x + kdx, y + kdy));
 				double intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 3.0;
 				for (int k = 0; k < kernels.length; k++) {
-					result[k * 144 + y * 12 + x] += intensity * kernels[k][kdy][kdx];
+					result[k * 64 + y * 8 + x] += intensity * kernels[k][kdy][kdx];
 				}
 			} }
 		} }

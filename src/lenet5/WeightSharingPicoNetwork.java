@@ -6,13 +6,13 @@ import java.util.Random;
 
 import static lenet5.Util.*;
 
-public class WeightSharingNanoNetwork {
+public class WeightSharingPicoNetwork {
 	Network nw;
 	Random r = new Random();
 	
-	public WeightSharingNanoNetwork(int variant) {
+	public WeightSharingPicoNetwork(int variant) {
 		Layer input = new Layer("Input");
-		for (int i = 0; i < 12 * 12 * DemoNet.kernels.length + 3; i++) {
+		for (int i = 0; i < 8 * 8 * DemoNet.kernels.length + 3; i++) {
 			input.nodes.add(new Node("input " + i));
 		}
 		// Bias node!
@@ -21,13 +21,13 @@ public class WeightSharingNanoNetwork {
 		//input.nodes.add(biasN);*/
 		
 		Layer hidden = new Layer("Hidden");
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < 4; i++) {
 			hidden.nodes.add(new Node("hidden " + i));
 		}
 		
 		// 2nd hidden layer
 		Layer h2 = new Layer("Hidden 2");
-		for (int i = 0; i < 7; i++) {
+		for (int i = 0; i < 3; i++) {
 			h2.nodes.add(new Node("h2 " + i));
 		}
 		
@@ -37,15 +37,15 @@ public class WeightSharingNanoNetwork {
 		HashMap<String, Weight> offsetToWeight = new HashMap<String, Weight>();
 		int iNum = 0;
 		for (Node iN : input.nodes) {
-			int inY = iNum / 12;
-			int inX = iNum % 12;
+			int inY = iNum / 8;
+			int inX = iNum % 8;
 			iNum++;
 			int hNum = 0;
 			for (Node hN : hidden.nodes) {
-				int hY = (hNum / 4) * 2 + 1;
-				int hX = (hNum % 4) * 2 + 1;
+				int hY = (hNum / 2) * 2 + 2;
+				int hX = (hNum % 2) * 2 + 2;
 				hNum++;
-				if (iNum / 144 != hNum / (2 + variant) && (iNum + hNum + variant) % 4 == 0) {
+				if (iNum / 64 != hNum / (2 + variant) && (iNum + hNum + variant) % 7 == 0) {
 					String offset = null;
 					if (iNum >= 12 * 12 * DemoNet.kernels.length) {
 						offset = "special " + iNum;
