@@ -5,11 +5,11 @@ import java.util.Random;
 
 import static lenet5.Util.*;
 
-public class Lenet4Net {
+public class Lenet4cNet {
 	Network nw;
 	Random r = new Random();
 	
-	public Lenet4Net() {
+	public Lenet4cNet() {
 		Layer input = new Layer("Input");
 		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
 			input.nodes.add(new Node("input " + y + "/" + x));
@@ -46,9 +46,16 @@ public class Lenet4Net {
 			}}
 		}
 		
+		Layer h5 = new Layer("H5 (pre-output)");
+		for (int i = 0; i < Lenet4b.OUTPUT_SIZE; i++) {
+			for (int j = 0; j < 7; j++) {
+				h5.nodes.add(new Node("Pre-output " + i + ":" + j));
+			}
+		}
+		
 		Layer output = new Layer("Output");
-		for (int i = 0; i < Lenet4.LETTERS.length; i++) {
-			output.nodes.add(new Node("Output " + i + ": " + Lenet4.LETTERS[i]));
+		for (int i = 0; i < Lenet4b.OUTPUT_SIZE; i++) {
+			output.nodes.add(new Node("Output " + i));
 		}
 		
 		// Connect input to h1
@@ -184,19 +191,41 @@ public class Lenet4Net {
 			}}
 		}
 		
-		// Connect h4 to output (full connection)
+		// Connect h4 to h5 (full connection)
 		for (Node h4N : h4.nodes) {
-			for (Node oN : output.nodes) {
+			for (Node h5N : h5.nodes) {
 				Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
 				h4.weights.add(w);
-				new Connection(h4N, oN, w);
+				new Connection(h4N, h5N, w);
+			}
+		}
+		// Add biases to h5.
+		for (Node h5N : h5.nodes) {
+			Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
+			h4.weights.add(w);
+			new Connection(biasN, h5N, w);
+		}
+		
+		// Connect h5 to output
+		for (int out = 0; out < Lenet4b.OUTPUT_SIZE; out++) {
+			for (int i = 0; i < 7; i++) {
+				Weight w = new Weight(rnd(-2.0 / 8, 2.0 / 8));
+				h5.weights.add(w);
+				new Connection(
+					h5.nodes.get(
+						out * 7 +
+						i
+					),
+					output.nodes.get(out),
+					w
+				);
 			}
 		}
 		
 		// Add biases to output.
 		for (Node oN : output.nodes) {
-			Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
-			h4.weights.add(w);
+			Weight w = new Weight(rnd(-2.0 / 8, 2.0 / 8));
+			h5.weights.add(w);
 			new Connection(biasN, oN, w);
 		}
 		
@@ -206,6 +235,7 @@ public class Lenet4Net {
 		layers.add(h2);
 		layers.add(h3);
 		layers.add(h4);
+		layers.add(h5);
 		layers.add(output);
 		
 		nw = new Network(layers);

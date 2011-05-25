@@ -180,7 +180,7 @@ public class UniNet3 {
 		
 		System.out.println("Loaded images and convolved data.");
 		
-		Lenet4Net network = new Lenet4Net(0);
+		UniNetwork3 network = new UniNetwork3(0);
 		
 		if (args[0].startsWith("train")) {
 			for (int rep = 0; rep < 3; rep++) {

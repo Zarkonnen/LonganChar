@@ -5,11 +5,11 @@ import java.util.Random;
 
 import static lenet5.Util.*;
 
-public class Lenet4Net {
+public class Lenet4bNet {
 	Network nw;
 	Random r = new Random();
 	
-	public Lenet4Net() {
+	public Lenet4bNet() {
 		Layer input = new Layer("Input");
 		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
 			input.nodes.add(new Node("input " + y + "/" + x));
@@ -47,8 +47,8 @@ public class Lenet4Net {
 		}
 		
 		Layer output = new Layer("Output");
-		for (int i = 0; i < Lenet4.LETTERS.length; i++) {
-			output.nodes.add(new Node("Output " + i + ": " + Lenet4.LETTERS[i]));
+		for (int i = 0; i < Lenet4b.OUTPUT_SIZE; i++) {
+			output.nodes.add(new Node("Output " + i));
 		}
 		
 		// Connect input to h1

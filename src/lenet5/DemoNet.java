@@ -58,7 +58,7 @@ public class DemoNet {
 		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
-	
+		
 	static class LetterRecord {
 		BufferedImage img;
 		double size = 1.0;
@@ -311,6 +311,22 @@ public class DemoNet {
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, 14, 14);
+		/*
+		int width = 0;
+		int xOffset = 0;
+		int height = 0;
+		int yOffset = 0;
+		if (src.getWidth() > src.getHeight()) {
+			width = 10;
+			height = 10 * src.getHeight() / src.getWidth();
+			yOffset = (10 - height) / 2;
+		} else {
+			height = 10;
+			width = 10 * src.getWidth() / src.getHeight();
+			xOffset = (10 - width) / 2;
+		}
+		g.drawImage(src, 2 + xOffset, 2 + yOffset, 2 + xOffset + width, 2 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
+		*/
 		g.drawImage(src, 2, 2, 12, 12, 0, 0, src.getWidth(), src.getHeight(), null);
 		/*try {
 			ImageIO.write(scaledSrc, "png", new File("/Users/zar/Desktop/img.png"));

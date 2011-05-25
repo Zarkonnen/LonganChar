@@ -21,28 +21,7 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class UniNet4 {
-	static final double[][][] kernels = {
-		// Identity
-		{
-			{ 0,  0,  0 },
-			{ 0,  1,  0 },
-			{ 0,  0,  0 }
-		},
-		// c/o detector (vgap)
-		{
-			{-1,  4, -1 },
-			{-1, -2, -1 },
-			{-1,  4, -1 }
-		},
-		// weird-ass kernel
-		{
-			{-2,  4,  2 },
-			{-4,  0,  4 },
-			{ 2, -4, -2 }
-		},
-	};
-	
+public class Lenet4b {
 	static class DoubleArray {
 		double[] data;
 
@@ -50,16 +29,15 @@ public class UniNet4 {
 			this.data = data;
 		}
 	}
-	
-	static final int OUTPUT_SIZE = 128;
-	static final int NUM_NETWORKS = 9;
-	
+		
 	static final String[] LETTERS = {
 		"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
 		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
+	
+	static final int OUTPUT_SIZE = 128;
 		
 	static String letterToFilename(String l) {
 		return
@@ -112,7 +90,6 @@ public class UniNet4 {
 			sizes.put(letterToFilename(s), ss);
 			sizeLists.put(letterToFilename(s), sL);
 			r.close();
-			
 			
 			MessageDigest md = MessageDigest.getInstance("MD5");
 			double[] data = new double[OUTPUT_SIZE];
@@ -181,40 +158,32 @@ public class UniNet4 {
 		
 		System.out.println("Loaded images and convolved data.");
 		
-		ArrayList<UniNetwork3> networks = new ArrayList<UniNetwork3>();		
+		Lenet4dNet network = new Lenet4dNet();
+		
 		if (args[0].startsWith("train")) {
-			for (int nn = 0; nn < NUM_NETWORKS; nn++) {
-				UniNetwork3 network = new UniNetwork3(nn);
-				networks.add(network);
-				for (int rep = 0; rep < 3; rep++) {
-					int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
-					for (int i = 0; i < to; i++) {
-						network.train(examples.get(i), 0.001, 0.0002);
-						if (i % 100 == 0) {
-							System.out.println(i + "/" + to + "/" + rep);
-						}
+			for (int rep = 0; rep < 20; rep++) {
+				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
+				for (int i = 0; i < to; i++) {
+					//network.train(examples.get(i), 0.0001, 0.00002);
+					//network.train(examples.get(i), 0.001, 0.0002);
+					network.train(examples.get(i), 0.002, 0.0005);
+					if (i % 100 == 0) {
+						System.out.println(i + "/" + to + "/" + rep);
 					}
 				}
-				System.out.println("Network trained.");
 			}
+			System.out.println("Network trained.");
 		} else {
-			for (int nn = 0; nn < NUM_NETWORKS; nn++) {
-				UniNetwork3 network = new UniNetwork3(nn);
-				networks.add(network);
-				FileInputStream fis = new FileInputStream(new File(new File(args[3]), "" + nn));
-				NetworkIO.input(network.nw, fis);
-				fis.close();
-			}
+			FileInputStream fis = new FileInputStream(new File(args[3]));
+			NetworkIO.input(network.nw, fis);
+			fis.close();
 			System.out.println("Loaded network.");
 		}
 		
 		if (args[0].equals("train")) {
-			for (int nn = 0; nn < NUM_NETWORKS; nn++) {
-				UniNetwork3 network = networks.get(nn);
-				FileOutputStream fos = new FileOutputStream(new File(new File(args[3]), "" + nn));
-				NetworkIO.output(network.nw, fos);
-				fos.close();
-			}
+			FileOutputStream fos = new FileOutputStream(new File(args[3]));
+			NetworkIO.output(network.nw, fos);
+			fos.close();
 			return;
 		}
 		
@@ -224,20 +193,15 @@ public class UniNet4 {
 		
 		for (int i = examples.size() / 2; i < examples.size(); i++) {
 			Example example = examples.get(i);
-			double[][] result = new double[NUM_NETWORKS][0];
-			for (int nn = 0; nn < NUM_NETWORKS; nn++) {
-				result[nn] = networks.get(nn).run(example.input);
-			}
+			double[] result = network.run(example.input);
 			String bestScoringLetter = null;
 			double leastError = 0;
 			double errorForCorrectLetter = -1;
 			for (String letter : LETTERS) {
 				double[] target = targets.get(letterToFilename(letter)).data;
 				double error = 0.0;
-				for (int nn = 0; nn < NUM_NETWORKS; nn++) {
-					for (int j = 0; j < OUTPUT_SIZE; j++) {
-						error += Math.abs(result[nn][j] - target[j]);//Math.sqrt((result[nn][j] - target[j]) * (result[nn][j] - target[j]));
-					}
+				for (int j = 0; j < OUTPUT_SIZE; j++) {
+					error += (result[j] - target[j]) * (result[j] - target[j]);
 				}
 				if (bestScoringLetter == null || leastError > error) {
 					bestScoringLetter = letter;
@@ -267,25 +231,38 @@ public class UniNet4 {
 		ps.close();
 	}
 	
+	static boolean done = false;
+	
 	static double[] getInputForNN(BufferedImage src, double size, double offset) {
-		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
+		BufferedImage scaledSrc = new BufferedImage(28, 28, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.drawImage(src, 2, 2, 12, 12, 0, 0, src.getWidth(), src.getHeight(), null);
+		g.fillRect(0, 0, 28, 28);
+		int width = 0;
+		int xOffset = 0;
+		int height = 0;
+		int yOffset = 0;
+		if (src.getWidth() > src.getHeight()) {
+			width = 16;
+			height = 16 * src.getHeight() / src.getWidth();
+			yOffset = (16 - height) / 2;
+		} else {
+			height = 16;
+			width = 16 * src.getWidth() / src.getHeight();
+			xOffset = (16 - width) / 2;
+		}
+		g.drawImage(src, 6 + xOffset, 6 + yOffset, 6 + xOffset + width, 6 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
+		if (!done) { done = true;
+			try {
+				ImageIO.write(scaledSrc, "png", new File("/Users/zar/Desktop/ex.png"));
+			} catch (Exception e) {}
+		}
 		src = scaledSrc;
-		double[] result = new double[kernels.length * 12 * 12 + 3];
-		for (int y = 0; y < 12; y++) { for (int x = 0; x < 12; x++) {
-			for (int kdy = 0; kdy < 3; kdy++) { for (int kdx = 0; kdx < 3; kdx++) {
-				Color c = new Color(src.getRGB(x + kdx, y + kdy));
-				double intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 3.0;
-				for (int k = 0; k < kernels.length; k++) {
-					result[k * 144 + y * 12 + x] += intensity * kernels[k][kdy][kdx];
-				}
-			} }
+		double[] result = new double[28 * 28];
+		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
+			Color c = new Color(src.getRGB(x, y));
+			result[y * 28 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
 		} }
-		result[result.length - 3] = Math.log(src.getWidth() / ((double) src.getHeight())) * 2;
-		result[result.length - 2] = Math.log(size) * 2;
-		result[result.length - 1] = offset * 5;
 		return result;
 	}
 }

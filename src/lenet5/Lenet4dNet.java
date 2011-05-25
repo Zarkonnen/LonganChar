@@ -5,11 +5,11 @@ import java.util.Random;
 
 import static lenet5.Util.*;
 
-public class Lenet4Net {
+public class Lenet4dNet {
 	Network nw;
 	Random r = new Random();
 	
-	public Lenet4Net() {
+	public Lenet4dNet() {
 		Layer input = new Layer("Input");
 		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
 			input.nodes.add(new Node("input " + y + "/" + x));
@@ -19,40 +19,47 @@ public class Lenet4Net {
 		biasN.activation = 1.0;
 		
 		Layer h1 = new Layer("H1 (conv)");
-		for (int m = 0; m < 4; m++) {
+		for (int m = 0; m < 6; m++) {
 			for (int y = 0; y < 24; y++) { for (int x = 0; x < 24; x++) {
 				h1.nodes.add(new Node("H1." + m + " " + y + "/" + x));
 			}}
 		}
 		
 		Layer h2 = new Layer("H2 (subsampling)");
-		for (int m = 0; m < 4; m++) {
+		for (int m = 0; m < 6; m++) {
 			for (int y = 0; y < 12; y++) { for (int x = 0; x < 12; x++) {
 				h2.nodes.add(new Node("H2." + m + " " + y + "/" + x));
 			}}
 		}
 		
 		Layer h3 = new Layer("H3 (conv)");
-		for (int m = 0; m < 12; m++) {
+		for (int m = 0; m < 16; m++) {
 			for (int y = 0; y < 8; y++) { for (int x = 0; x < 8; x++) {
 				h3.nodes.add(new Node("H3." + m + " " + y + "/" + x));
 			}}
 		}
 		
 		Layer h4 = new Layer("H4 (subsampling)");
-		for (int m = 0; m < 12; m++) {
+		for (int m = 0; m < 16; m++) {
 			for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) {
 				h4.nodes.add(new Node("H4." + m + " " + y + "/" + x));
 			}}
 		}
 		
+		Layer h5 = new Layer("H5 (pre-output)");
+		for (int i = 0; i < Lenet4b.OUTPUT_SIZE; i++) {
+			for (int j = 0; j < 7; j++) {
+				h5.nodes.add(new Node("Pre-output " + i + ":" + j));
+			}
+		}
+		
 		Layer output = new Layer("Output");
-		for (int i = 0; i < Lenet4.LETTERS.length; i++) {
-			output.nodes.add(new Node("Output " + i + ": " + Lenet4.LETTERS[i]));
+		for (int i = 0; i < Lenet4b.OUTPUT_SIZE; i++) {
+			output.nodes.add(new Node("Output " + i));
 		}
 		
 		// Connect input to h1
-		for (int m = 0; m < 4; m++) {
+		for (int m = 0; m < 6; m++) {
 			for (int wY = 0; wY < 5; wY++) { for (int wX = 0; wX < 5; wX++) {
 				Weight w = new Weight(rnd(-2.0 / 26, 2.0 / 26));
 				input.weights.add(w);
@@ -89,7 +96,7 @@ public class Lenet4Net {
 		}
 		
 		// Connect h1 to h2
-		for (int m = 0; m < 4; m++) {
+		for (int m = 0; m < 6; m++) {
 			Weight w = new Weight(0.25);
 			h1.weights.add(w);
 			for (int y = 0; y < 12; y++) { for (int x = 0; x < 12; x++) {
@@ -113,16 +120,18 @@ public class Lenet4Net {
 		
 		// Connect h2 to h3
 		boolean X = true;
-		boolean _ = false;
+		boolean O = false;
 		boolean[][] table = {
-			{X, X, X, _, X, X, _, _, _, _, _, _},
-			{_, X, X, X, X, X, _, _, _, _, _, _},
-			{_, _, _, _, _, _, X, X, X, _, X, X},
-			{_, _, _, _, _, _, _, X, X, X, X, X}
+			{X, O, O, O, X, X, X, O, O, X, X, X, X, O, X, X},
+			{X, X, O, O, O, X, X, X, O, O, X, X, X, X, O, X},
+			{X, X, X, O, O, O, X, X, X, O, O, X, O, X, X, X},
+			{O, X, X, X, O, O, X, X, X, X, O, O, X, O, X, X},
+			{O, O, X, X, X, O, O, X, X, X, X, O, X, X, O, X},
+			{O, O, O, X, X, X, O, O, X, X, X, X, O, X, X, X}
 		};
 		
-		for (int m1 = 0; m1 < 4; m1++) {
-			for (int m3 = 0; m3 < 12; m3++) {
+		for (int m1 = 0; m1 < 6; m1++) {
+			for (int m3 = 0; m3 < 16; m3++) {
 				if (!table[m1][m3]) { continue; }
 				for (int wY = 0; wY < 5; wY++) { for (int wX = 0; wX < 5; wX++) {
 					Weight w = new Weight(rnd(-2.0 / 26, 2.0 / 26));
@@ -162,7 +171,7 @@ public class Lenet4Net {
 		}
 		
 		// Connect h3 to h4
-		for (int m3 = 0; m3 < 12; m3++) {
+		for (int m3 = 0; m3 < 16; m3++) {
 			Weight w = new Weight(0.25);
 			h3.weights.add(w);
 			for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) {
@@ -184,21 +193,58 @@ public class Lenet4Net {
 			}}
 		}
 		
-		// Connect h4 to output (full connection)
+		// Connect h4 to h5 (full connection)
 		for (Node h4N : h4.nodes) {
-			for (Node oN : output.nodes) {
+			for (Node h5N : h5.nodes) {
 				Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
 				h4.weights.add(w);
-				new Connection(h4N, oN, w);
+				new Connection(h4N, h5N, w);
+			}
+		}
+		// Add biases to h5.
+		for (Node h5N : h5.nodes) {
+			Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
+			h4.weights.add(w);
+			new Connection(biasN, h5N, w);
+		}
+		
+		// Connect h5 to output (full connection)
+		for (Node h5N : h5.nodes) {
+			for (Node oN : output.nodes) {
+				Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
+				h5.weights.add(w);
+				new Connection(h5N, oN, w);
+			}
+		}
+		// Add biases to output.
+		for (Node oN : output.nodes) {
+			Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
+			h5.weights.add(w);
+			new Connection(biasN, oN, w);
+		}
+		
+		/*
+		for (int out = 0; out < Lenet4b.OUTPUT_SIZE; out++) {
+			for (int i = 0; i < 7; i++) {
+				Weight w = new Weight(rnd(-2.0 / 8, 2.0 / 8));
+				h5.weights.add(w);
+				new Connection(
+					h5.nodes.get(
+						out * 7 +
+						i
+					),
+					output.nodes.get(out),
+					w
+				);
 			}
 		}
 		
 		// Add biases to output.
 		for (Node oN : output.nodes) {
-			Weight w = new Weight(rnd(-2.0 / 193, 2.0 / 193));
-			h4.weights.add(w);
+			Weight w = new Weight(rnd(-2.0 / 8, 2.0 / 8));
+			h5.weights.add(w);
 			new Connection(biasN, oN, w);
-		}
+		}*/
 		
 		ArrayList<Layer> layers = new ArrayList<Layer>();
 		layers.add(input);
@@ -206,6 +252,7 @@ public class Lenet4Net {
 		layers.add(h2);
 		layers.add(h3);
 		layers.add(h4);
+		layers.add(h5);
 		layers.add(output);
 		
 		nw = new Network(layers);

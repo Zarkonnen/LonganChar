@@ -147,13 +147,14 @@ public class Lenet4 {
 		
 		System.out.println("Loaded images and convolved data.");
 		
-		UniNetwork3 network = new UniNetwork3(0);
+		Lenet4Net network = new Lenet4Net();
 		
 		if (args[0].startsWith("train")) {
 			for (int rep = 0; rep < 3; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
 				for (int i = 0; i < to; i++) {
-					network.train(examples.get(i), 0.001, 0.0002);
+					//network.train(examples.get(i), 0.001, 0.0002);
+					network.train(examples.get(i), 0.002, 0.0005);
 					if (i % 100 == 0) {
 						System.out.println(i + "/" + to + "/" + rep);
 					}
@@ -215,6 +216,8 @@ public class Lenet4 {
 		ps.close();
 	}
 	
+	static boolean done = false;
+	
 	static double[] getInputForNN(BufferedImage src, double size, double offset) {
 		BufferedImage scaledSrc = new BufferedImage(28, 28, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
@@ -231,9 +234,14 @@ public class Lenet4 {
 		} else {
 			height = 16;
 			width = 16 * src.getWidth() / src.getHeight();
-			xOffset = (16 - height) / 2;
+			xOffset = (16 - width) / 2;
 		}
-		g.drawImage(src, 6 + xOffset, 6 + yOffset, width, height, 0, 0, src.getWidth(), src.getHeight(), null);
+		g.drawImage(src, 6 + xOffset, 6 + yOffset, 6 + xOffset + width, 6 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
+		if (!done) { done = true;
+			try {
+				ImageIO.write(scaledSrc, "png", new File("/Users/zar/Desktop/ex.png"));
+			} catch (Exception e) {}
+		}
 		src = scaledSrc;
 		double[] result = new double[28 * 28];
 		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {

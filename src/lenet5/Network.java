@@ -25,6 +25,13 @@ public class Network {
 	}
 	
 	public void train(double[] input, double[] target, double n, double m) {
+		/*for (int i = layers.size() - 1; i >= 0; i--) {
+			setInput(input);
+			update();
+			setTargets(target);
+			calculateDelta();
+			layers.get(i).adjustWeights(n, m);
+		}*/
 		setInput(input);
 		update();
 		setTargets(target);
