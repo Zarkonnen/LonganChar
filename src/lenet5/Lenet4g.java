@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4b {
+public class Lenet4g {
 	static class DoubleArray {
 		double[] data;
 
@@ -93,12 +93,10 @@ public class Lenet4b {
 			
 			MessageDigest md = MessageDigest.getInstance("MD5");
 			double[] data = new double[OUTPUT_SIZE];
-			for (int k = 0; k < 1; k++) {
-				byte[] digest = md.digest((s + k).getBytes("UTF-8"));
-				for (int i = 0; i < 8; i++) {
-					for (int j = 0; j < 8; j++) {
-						data[k * 128 + i * 8 + j] = (digest[i] >>> j) & 1;
-					}
+			byte[] digest = md.digest(s.getBytes("UTF-8"));
+			for (int i = 0; i < 8; i++) {
+				for (int j = 0; j < 8; j++) {
+					data[i * 8 + j] = (digest[i] >>> j) & 1;
 				}
 			}
 			//System.out.println(s + Arrays.toString(data));
@@ -158,12 +156,12 @@ public class Lenet4b {
 		
 		System.out.println("Loaded images and convolved data.");
 		
-		Lenet4eNet network = new Lenet4eNet();
+		Lenet4hNet network = new Lenet4hNet();
 		System.out.println("Nodes: " + network.nw.numNodes());
 		System.out.println("Weights: " + network.nw.numWeights());
 		
 		if (args[0].startsWith("train")) {
-			for (int rep = 0; rep < 20; rep++) {
+			for (int rep = 0; rep < 30; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
 				for (int i = 0; i < to; i++) {
 					//network.train(examples.get(i), 0.0001, 0.00002);
@@ -238,34 +236,34 @@ public class Lenet4b {
 	static boolean done = false;
 	
 	static double[] getInputForNN(BufferedImage src, double size, double offset) {
-		BufferedImage scaledSrc = new BufferedImage(28, 28, BufferedImage.TYPE_INT_RGB);
+		BufferedImage scaledSrc = new BufferedImage(14, 14, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.fillRect(0, 0, 28, 28);
-		int width = 0;
+		g.fillRect(0, 0, 14, 14);
+		int width = 10;
 		int xOffset = 0;
-		int height = 0;
+		int height = 10;
 		int yOffset = 0;
-		if (src.getWidth() > src.getHeight()) {
-			width = 16;
-			height = 16 * src.getHeight() / src.getWidth();
-			yOffset = (16 - height) / 2;
+		/*if (src.getWidth() > src.getHeight()) {
+			width = 10;
+			height = 10 * src.getHeight() / src.getWidth();
+			yOffset = (10 - height) / 2;
 		} else {
-			height = 16;
-			width = 16 * src.getWidth() / src.getHeight();
-			xOffset = (16 - width) / 2;
-		}
-		g.drawImage(src, 6 + xOffset, 6 + yOffset, 6 + xOffset + width, 6 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
+			height = 10;
+			width = 10 * src.getWidth() / src.getHeight();
+			xOffset = (10 - width) / 2;
+		}*/
+		g.drawImage(src, 2 + xOffset, 2 + yOffset, 2 + xOffset + width, 2 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
 		if (!done) { done = true;
 			try {
 				ImageIO.write(scaledSrc, "png", new File("/Users/zar/Desktop/ex.png"));
 			} catch (Exception e) {}
 		}
 		src = scaledSrc;
-		double[] result = new double[28 * 28];
-		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
+		double[] result = new double[14 * 14];
+		for (int y = 0; y < 14; y++) { for (int x = 0; x < 14; x++) {
 			Color c = new Color(src.getRGB(x, y));
-			result[y * 28 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
+			result[y * 14 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
 		} }
 		return result;
 	}

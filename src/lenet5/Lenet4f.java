@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4b {
+public class Lenet4f {
 	static class DoubleArray {
 		double[] data;
 
@@ -37,7 +37,7 @@ public class Lenet4b {
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
 	
-	static final int OUTPUT_SIZE = 64;
+	static final int OUTPUT_SIZE = 128;
 		
 	static String letterToFilename(String l) {
 		return
@@ -95,7 +95,7 @@ public class Lenet4b {
 			double[] data = new double[OUTPUT_SIZE];
 			for (int k = 0; k < 1; k++) {
 				byte[] digest = md.digest((s + k).getBytes("UTF-8"));
-				for (int i = 0; i < 8; i++) {
+				for (int i = 0; i < 16; i++) {
 					for (int j = 0; j < 8; j++) {
 						data[k * 128 + i * 8 + j] = (digest[i] >>> j) & 1;
 					}
@@ -158,7 +158,7 @@ public class Lenet4b {
 		
 		System.out.println("Loaded images and convolved data.");
 		
-		Lenet4eNet network = new Lenet4eNet();
+		Lenet4fNet network = new Lenet4fNet();
 		System.out.println("Nodes: " + network.nw.numNodes());
 		System.out.println("Weights: " + network.nw.numWeights());
 		
@@ -262,11 +262,14 @@ public class Lenet4b {
 			} catch (Exception e) {}
 		}
 		src = scaledSrc;
-		double[] result = new double[28 * 28];
+		double[] result = new double[28 * 28 + 3];
 		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
 			Color c = new Color(src.getRGB(x, y));
 			result[y * 28 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
 		} }
+		result[result.length - 3] = Math.log(src.getWidth() / ((double) src.getHeight())) * 2;
+		result[result.length - 2] = Math.log(size) * 2;
+		result[result.length - 1] = offset * 5;
 		return result;
 	}
 }

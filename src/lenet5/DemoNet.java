@@ -221,8 +221,8 @@ public class DemoNet {
 					WeightSharingNanoNetwork mn = new WeightSharingNanoNetwork(n);
 					System.out.println("Created MN for " + lName);
 					// Shuffle?
-					for (int i = 0; i < 3; i++) {
-						mn.train(trainingPos, trainingNeg, 0.001, 0.0002);
+					for (int i = 0; i < 4; i++) {
+						mn.train(trainingPos, trainingNeg, 0.002, 0.0005);
 						System.out.println("pass " + (i + 1) + " complete");
 					}
 
