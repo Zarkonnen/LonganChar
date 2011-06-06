@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4b {
+public class Lenet4eWithNoSameLetters {
 	static class DoubleArray {
 		double[] data;
 
@@ -31,9 +31,9 @@ public class Lenet4b {
 		
 	static final String[] LETTERS = {
 		"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+		"A", "B", "D", "E", "F", "G", "H", "I", "J", "K", "L", "N", "Q", "R", "T", "Y",
 		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
-		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+		"1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
 	
 	static final int OUTPUT_SIZE = 128;

@@ -14,13 +14,14 @@ import java.io.PrintStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4b {
+public class Lenet4eWithCaseMerging {
 	static class DoubleArray {
 		double[] data;
 
@@ -35,6 +36,10 @@ public class Lenet4b {
 		"!", "@", "£", "$", "%", "&", "(", ")", "'", ".", ",", ":", ";", "/", "?", "+", "-",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
+	
+	static final List<String> CASE_MERGED = Arrays.asList(new String[] {
+		"c", "m", "o", "p", "s", "u", "v", "w", "x", "z"
+	});
 	
 	static final int OUTPUT_SIZE = 128;
 		
@@ -92,7 +97,15 @@ public class Lenet4b {
 			
 			MessageDigest md = MessageDigest.getInstance("MD5");
 			double[] data = new double[OUTPUT_SIZE];
-			byte[] digest = md.digest(s.getBytes("UTF-8"));
+			byte[] digest;
+			if (CASE_MERGED.contains(s.toLowerCase())) {
+				 digest = md.digest(s.toLowerCase().getBytes("UTF-8"));
+			} else {
+				 digest = md.digest(s.getBytes("UTF-8"));
+			}
+			if (s.equals("0")) {
+				digest = md.digest("o".getBytes("UTF-8"));
+			}
 			for (int i = 0; i < 16; i++) {
 				for (int j = 0; j < 8; j++) {
 					data[i * 8 + j] = (digest[i] >>> j) & 1;
@@ -160,13 +173,13 @@ public class Lenet4b {
 		System.out.println("Weights: " + network.nw.numWeights());
 		
 		if (args[0].startsWith("train")) {
-			for (int rep = 0; rep < 40; rep++) {
+			for (int rep = 0; rep < 25; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
 				Collections.shuffle(examples);
 				for (int i = 0; i < to; i++) {
 					//network.train(examples.get(i), 0.0001, 0.00002);
 					//network.train(examples.get(i), 0.001, 0.0002);
-					network.train(examples.get(i), 0.001, 0.0002);
+					network.train(examples.get(i), 0.002, 0.0005);
 					if (i % 100 == 0) {
 						System.out.println(i + "/" + to + "/" + rep);
 					}
