@@ -134,6 +134,7 @@ public class Lenet4eWithCaseMerging {
 				continue;
 			}
 			int nForThisLetter = 0;
+			ArrayList<Example> examplesForThisLetter = new ArrayList<Example>();
 			for (File f : fol.listFiles()) {
 				if (nForThisLetter++ >= 200) { break; }
 				if (f.getName().endsWith(".png")) {
@@ -155,17 +156,25 @@ public class Lenet4eWithCaseMerging {
 									rnd.nextInt(sizeLists.get(fol.getName()).size()));
 						}
 						
-						examples.add(new Example(fol.getName(),
-								getInputForNN(img, size, offset), targets.get(fol.getName()).data));
+						Example ex = new Example(fol.getName(),
+								getInputForNN(img, size, offset), targets.get(fol.getName()).data);
+						examples.add(ex);
+						examplesForThisLetter.add(ex);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
 				}
 			}
+			// Top up
+			int exOffset = 0;
+			while (examplesForThisLetter.size() < 200) {
+				examples.add(examplesForThisLetter.get(exOffset));
+				examplesForThisLetter.add(examplesForThisLetter.get(exOffset));
+				exOffset = (exOffset + 1) % examplesForThisLetter.size();
+			}
 		}
 		Collections.shuffle(examples);
 
-		
 		System.out.println("Loaded images and convolved data.");
 		
 		Lenet4eNet network = new Lenet4eNet();
@@ -173,13 +182,14 @@ public class Lenet4eWithCaseMerging {
 		System.out.println("Weights: " + network.nw.numWeights());
 		
 		if (args[0].startsWith("train")) {
-			for (int rep = 0; rep < 25; rep++) {
+			for (int rep = 0; rep < 10; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
 				Collections.shuffle(examples);
 				for (int i = 0; i < to; i++) {
 					//network.train(examples.get(i), 0.0001, 0.00002);
 					//network.train(examples.get(i), 0.001, 0.0002);
 					network.train(examples.get(i), 0.002, 0.0005);
+					//network.train(examples.get(i), 0.5, 0.15);
 					if (i % 100 == 0) {
 						System.out.println(i + "/" + to + "/" + rep);
 					}
@@ -228,7 +238,9 @@ public class Lenet4eWithCaseMerging {
 			
 			if (bestScoringLetter.equals(example.letter) ||
 				(bestScoringLetter + "-uc").equals(example.letter) ||
-				bestScoringLetter.equals(example.letter + "-uc"))
+				bestScoringLetter.equals(example.letter + "-uc") ||
+				bestScoringLetter.equals("0") && example.letter.equals("o") ||
+				bestScoringLetter.equals("o") && example.letter.equals("0"))
 			{
 				hits++;
 			} else {

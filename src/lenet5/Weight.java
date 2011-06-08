@@ -12,6 +12,9 @@ public class Weight {
 	}
 
 	double adjust(double n, double m) {
+		// qqDPS
+		/*n /= connections.size();
+		m /= connections.size();*/
 		double change = 0.0;
 		for (Connection c : connections) {
 			for (Node input : c.inputs) {
