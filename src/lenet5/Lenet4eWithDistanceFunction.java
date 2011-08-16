@@ -23,11 +23,21 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4eWithCaseMerging {
+public class Lenet4eWithDistanceFunction {
 	static class DoubleArray {
 		double[] data;
 
 		public DoubleArray(double[] data) {
+			this.data = data;
+		}
+	}
+	
+	static class Output {
+		final String l;
+		final double[] data;
+
+		public Output(String l, double[] data) {
+			this.l = l;
 			this.data = data;
 		}
 	}
@@ -182,12 +192,12 @@ public class Lenet4eWithCaseMerging {
 		Lenet4eNet network = new Lenet4eNet();
 		System.out.println("Nodes: " + network.nw.numNodes());
 		System.out.println("Weights: " + network.nw.numWeights());
+		ArrayList<Output> comparisons = new ArrayList<Output>();
+		Collections.shuffle(examples);
+		final int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
 		
 		if (args[0].startsWith("train")) {
 			for (int rep = 0; rep < 10; rep++) {
-				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
-				// Collections.shuffle(examples); BAD BAD BAD BAD BAD
-				Collections.shuffle(examples.subList(0, to));
 				for (int i = 0; i < to; i++) {
 					//network.train(examples.get(i), 0.0001, 0.00002);
 					//network.train(examples.get(i), 0.001, 0.0002);
@@ -199,6 +209,10 @@ public class Lenet4eWithCaseMerging {
 				}
 			}
 			System.out.println("Network trained.");
+			for (int i = 0; i < to; i++) {
+				Example e = examples.get(i);
+				comparisons.add(new Output(e.letter, network.run(e.input)));
+			}
 		} else {
 			FileInputStream fis = new FileInputStream(new File(args[2]));
 			NetworkIO.input(network.nw, fis);
@@ -265,7 +279,7 @@ public class Lenet4eWithCaseMerging {
 			double[] result = network.run(example.input);
 			String bestScoringLetter = null;
 			double leastError = 0;
-			double errorForCorrectLetter = -1;
+			double errorForCorrectLetter = 10000;
 			for (String letter : LETTERS) {
 				double[] target = targets.get(letterToFilename(letter)).data;
 				double error = 0.0;
@@ -280,6 +294,20 @@ public class Lenet4eWithCaseMerging {
 					errorForCorrectLetter = error;
 				}
 			}
+			
+			/*for (Output c : comparisons) {
+				double error = 0.0;
+				for (int j = 0; j < OUTPUT_SIZE; j++) {
+					error += (result[j] - c.data[j]) * (result[j] - c.data[j]);
+				}
+				if (bestScoringLetter == null || leastError > error) {
+					bestScoringLetter = letterToFilename(c.l);
+					leastError = error;
+				}
+				if (letterToFilename(c.l).equals(example.letter)) {
+					errorForCorrectLetter = Math.min(error, errorForCorrectLetter);
+				}
+			}*/
 			
 			if (bestScoringLetter.equals(example.letter) ||
 				(bestScoringLetter + "-uc").equals(example.letter) ||

@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4eWithCaseMerging {
+public class Fourier {
 	static class DoubleArray {
 		double[] data;
 
@@ -179,14 +179,13 @@ public class Lenet4eWithCaseMerging {
 
 		System.out.println("Loaded images and convolved data.");
 		
-		Lenet4eNet network = new Lenet4eNet();
+		FourierNet network = new FourierNet();
 		System.out.println("Nodes: " + network.nw.numNodes());
 		System.out.println("Weights: " + network.nw.numWeights());
 		
 		if (args[0].startsWith("train")) {
 			for (int rep = 0; rep < 10; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
-				// Collections.shuffle(examples); BAD BAD BAD BAD BAD
 				Collections.shuffle(examples.subList(0, to));
 				for (int i = 0; i < to; i++) {
 					//network.train(examples.get(i), 0.0001, 0.00002);
@@ -210,48 +209,6 @@ public class Lenet4eWithCaseMerging {
 			FileOutputStream fos = new FileOutputStream(new File(args[2]));
 			NetworkIO.output(network.nw, fos);
 			fos.close();
-			return;
-		}
-		
-		if (args[0].equals("correlate")) {
-			System.out.print("Correloiding");
-			System.out.println(System.currentTimeMillis());
-			HashMap<String, ArrayList<DoubleArray>> results = new HashMap<String, ArrayList<DoubleArray>>();
-			for (int i = examples.size() / 2; i < examples.size(); i++) {
-				Example example = examples.get(i);
-				double[] result = network.run(example.input);
-				if (!results.containsKey(example.letter)) {
-					results.put(example.letter, new ArrayList<DoubleArray>());
-				}
-				results.get(example.letter).add(new DoubleArray(result));
-			}
-			
-			ATRWriter w = new ATRWriter(new FileOutputStream(new File(args[3])));
-			for (String l : LETTERS) {
-				System.out.println(l);
-				w.startRecord();
-				w.write(l);
-				double[] errorSum = new double[OUTPUT_SIZE];
-				double[] target = targets.get(letterToFilename(l)).data;
-				for (DoubleArray result : results.get(letterToFilename(l))) {
-					for (int i = 0; i < OUTPUT_SIZE; i++) {
-						errorSum[i] += (result.data[i] - target[i]) * (result.data[i] - target[i]);
-					}
-				}
-				for (int i = 0; i < OUTPUT_SIZE; i++) {
-					System.out.print((int) errorSum[i] * 10);
-					System.out.print(" ");
-				}
-				
-				System.out.println();
-				for (int i = 0; i < OUTPUT_SIZE; i++) {
-					System.out.print(errorSum[i] > examples.size() * 0.001 ? 0 : 1);
-					w.write(errorSum[i] > examples.size() * 0.001 ? "0" : "1");
-				}	
-				
-				w.endRecord();
-				System.out.println();
-			}
 			return;
 		}
 		
@@ -315,15 +272,15 @@ public class Lenet4eWithCaseMerging {
 		int height = 0;
 		int yOffset = 0;
 		if (src.getWidth() > src.getHeight()) {
-			width = 16;
-			height = 16 * src.getHeight() / src.getWidth();
-			yOffset = (16 - height) / 2;
+			width = 28;
+			height = 28 * src.getHeight() / src.getWidth();
+			yOffset = (28 - height) / 2;
 		} else {
-			height = 16;
-			width = 16 * src.getWidth() / src.getHeight();
-			xOffset = (16 - width) / 2;
+			height = 28;
+			width = 28 * src.getWidth() / src.getHeight();
+			xOffset = (28 - width) / 2;
 		}
-		g.drawImage(src, 6 + xOffset, 6 + yOffset, 6 + xOffset + width, 6 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
+		g.drawImage(src, xOffset, yOffset, xOffset + width, yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
 		src = scaledSrc;
 		double[] result = new double[28 * 28];
 		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {

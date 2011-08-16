@@ -1,12 +1,9 @@
 package lenet5;
 
-import com.metalbeetle.fruitbat.atrio.ATRReader;
-import com.metalbeetle.fruitbat.atrio.ATRWriter;
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.BufferedInputStream;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -23,7 +20,7 @@ import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class Lenet4eWithCaseMerging {
+public class LenetX4 {
 	static class DoubleArray {
 		double[] data;
 
@@ -58,45 +55,87 @@ public class Lenet4eWithCaseMerging {
 				: l.toLowerCase() + "-uc";
 	}
 	
+	static final int THRESHOLD = 210;
+	
+	static BufferedImage rotate(BufferedImage in, double rotation) {
+		BufferedImage out = new BufferedImage(in.getWidth() * 2, in.getHeight() * 2, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = out.createGraphics();
+		g.setColor(Color.WHITE);
+		g.fillRect(0, 0, in.getWidth() * 2, in.getHeight() * 2);
+		g.translate(in.getWidth(), in.getHeight());
+		g.rotate(rotation);
+		g.translate(-in.getWidth(), -in.getHeight());
+		g.drawImage(in, 0, 0, null);
+		
+		// Box in
+		int minX = 0;
+		loop: while (minX < out.getWidth()) {
+			for (int y = 0; y < out.getHeight(); y++) {
+				Color c = new Color(out.getRGB(minX, y));
+				int intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 3;
+				if (intensity < THRESHOLD) {
+					break loop;
+				}
+			}
+			minX++;
+		}
+		if (minX > 0) { minX--; }
+		int maxX = out.getWidth() - 1;
+		loop: while (maxX >= 0) {
+			for (int y = 0; y < out.getHeight(); y++) {
+				Color c = new Color(out.getRGB(maxX, y));
+				int intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 3;
+				if (intensity < THRESHOLD) {
+					break loop;
+				}
+			}
+			maxX--;
+		}
+		if (maxX < out.getWidth() - 1) { maxX++; }
+		int minY = 0;
+		loop: while (minY < out.getHeight()) {
+			for (int x = 0; x < out.getWidth(); x++) {
+				Color c = new Color(out.getRGB(x, minY));
+				int intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 3;
+				if (intensity < THRESHOLD) {
+					break loop;
+				}
+			}
+			minY++;
+		}
+		if (minY > 0) { minY--; }
+		int maxY = out.getHeight() - 1;
+		loop: while (maxY >= 0) {
+			for (int x = 0; x < out.getWidth(); x++) {
+				Color c = new Color(out.getRGB(x, maxY));
+				int intensity = (c.getRed() + c.getGreen() + c.getBlue()) / 3;
+				if (intensity < THRESHOLD) {
+					break loop;
+				}
+			}
+			maxY--;
+		}
+		if (maxY < out.getHeight() - 1) { maxY++; }
+		
+		BufferedImage o2 = new BufferedImage(maxX - minX, maxY - minY, BufferedImage.TYPE_INT_RGB);
+		Graphics g2 = o2.getGraphics();
+		g2.drawImage(out, 0, 0, o2.getWidth(), o2.getHeight(), minX, minY, maxX, maxY, null);
+		/*try {
+			ImageIO.write(o2, "jpg", new File("/Users/zar/Desktop/imaje.jpg"));
+			System.exit(0);
+		} catch (Exception e) {}*/
+		
+		return o2;
+	}
+	
 	public static void main(String[] args) throws FileNotFoundException, IOException, NoSuchAlgorithmException {
-		Random rnd = new Random();
-		PrintStream ps = new PrintStream(new File("/Users/zar/Desktop/out2.txt"));
+		PrintStream ps = new PrintStream(new File("/Users/zar/Desktop/out.txt"));
 		System.setOut(ps);
 		ArrayList<File> bExFolders = new ArrayList<File>();
-		HashMap<String, HashMap<String, Double>> offsets = new HashMap<String, HashMap<String, Double>>();
-		HashMap<String, ArrayList<Double>> offsetLists = new HashMap<String, ArrayList<Double>>();
-		HashMap<String, HashMap<String, Double>> sizes = new HashMap<String, HashMap<String, Double>>();
-		HashMap<String, ArrayList<Double>> sizeLists = new HashMap<String, ArrayList<Double>>();
 		HashMap<String, DoubleArray> targets = new HashMap<String, DoubleArray>();
+		Random r = new Random();
 		
-		int lIndex = 0;
-		for (String s : LETTERS) {
-			HashMap<String, Double> os = new HashMap<String, Double>();
-			ArrayList<Double> osL = new ArrayList<Double>();
-			ATRReader r = new ATRReader(new BufferedInputStream(new FileInputStream(
-					new File(new File(args[1]), letterToFilename(s) + "-offset.atr"))));
-			List<String> rec = null;
-			while ((rec = r.readRecord()) != null) {
-				os.put(rec.get(0), Double.parseDouble(rec.get(1)));
-				osL.add(Double.parseDouble(rec.get(1)));
-			}
-			offsets.put(letterToFilename(s), os);
-			offsetLists.put(letterToFilename(s), osL);
-			r.close();
-			
-			HashMap<String, Double> ss = new HashMap<String, Double>();
-			ArrayList<Double> sL = new ArrayList<Double>();
-			r = new ATRReader(new BufferedInputStream(new FileInputStream(
-					new File(new File(args[1]), letterToFilename(s) + "-size.atr"))));
-			rec = null;
-			while ((rec = r.readRecord()) != null) {
-				ss.put(rec.get(0), Double.parseDouble(rec.get(1)));
-				sL.add(Double.parseDouble(rec.get(1)));
-			}
-			sizes.put(letterToFilename(s), ss);
-			sizeLists.put(letterToFilename(s), sL);
-			r.close();
-			
+		for (String s : LETTERS) {			
 			MessageDigest md = MessageDigest.getInstance("MD5");
 			double[] data = new double[OUTPUT_SIZE];
 			byte[] digest;
@@ -110,10 +149,9 @@ public class Lenet4eWithCaseMerging {
 			}
 			for (int i = 0; i < 16; i++) {
 				for (int j = 0; j < 8; j++) {
-					data[i * 8 + j] = (digest[i] >>> j) & 1;
+					data[i * 8 + j] = ((digest[i] >>> j) & 1) * 2 - 1;
 				}
 			}
-			//System.out.println(s + Arrays.toString(data));
 			targets.put(letterToFilename(s),
 				new DoubleArray(data)
 			);
@@ -141,25 +179,10 @@ public class Lenet4eWithCaseMerging {
 				if (nForThisLetter++ >= 200) { break; }
 				if (f.getName().endsWith(".png")) {
 					try {
-						BufferedImage img = ImageIO.read(f);
-						double offset = 0.0;
-						double size = 1.0;
-						String num = f.getName().substring(0, f.getName().length() - 4);
-						if (offsets.get(fol.getName()).containsKey(num)) {
-							offset = offsets.get(fol.getName()).get(num);
-						} else {
-							offset = offsetLists.get(fol.getName()).get(
-									rnd.nextInt(offsetLists.get(fol.getName()).size()));
-						}
-						if (sizes.get(fol.getName()).containsKey(num)) {
-							size = sizes.get(fol.getName()).get(num);
-						} else {
-							size = sizeLists.get(fol.getName()).get(
-									rnd.nextInt(sizeLists.get(fol.getName()).size()));
-						}
-						
+						BufferedImage img = ImageIO.read(f);						
 						Example ex = new Example(fol.getName(),
-								getInputForNN(img, size, offset), targets.get(fol.getName()).data);
+								getInputForNN(img), targets.get(fol.getName()).data);
+						ex.original = img;
 						examples.add(ex);
 						examplesForThisLetter.add(ex);
 					} catch (Exception e) {
@@ -174,24 +197,36 @@ public class Lenet4eWithCaseMerging {
 				examplesForThisLetter.add(examplesForThisLetter.get(exOffset));
 				exOffset = (exOffset + 1) % examplesForThisLetter.size();
 			}
+			
+			// Top up with rotations
+			for (int i = 0; i < 400; i++) {
+				Example ox = examplesForThisLetter.get(i % 200);
+				BufferedImage rotated = rotate(ox.original, (r.nextDouble() - 0.5) * 2 / Math.PI);
+				Example ex = new Example(ox.letter, getInputForNN(rotated), ox.target);
+				examples.add(ex);
+			}
+			
+			// clear buffered images
+			for (Example e : examplesForThisLetter) { e.original = null; }
 		}
 		Collections.shuffle(examples);
 
 		System.out.println("Loaded images and convolved data.");
 		
-		Lenet4eNet network = new Lenet4eNet();
+		Lenet5000Net network = new Lenet5000Net();
 		System.out.println("Nodes: " + network.nw.numNodes());
 		System.out.println("Weights: " + network.nw.numWeights());
 		
 		if (args[0].startsWith("train")) {
-			for (int rep = 0; rep < 10; rep++) {
+			for (int rep = 0; rep < 8; rep++) {
 				int to = args[0].equals("trainAndTest") ? examples.size() / 2 : examples.size();
-				// Collections.shuffle(examples); BAD BAD BAD BAD BAD
 				Collections.shuffle(examples.subList(0, to));
 				for (int i = 0; i < to; i++) {
 					//network.train(examples.get(i), 0.0001, 0.00002);
 					//network.train(examples.get(i), 0.001, 0.0002);
-					network.train(examples.get(i), 0.002, 0.0005);
+					//for (int q = 0; q < 3; q++) {
+						network.train(examples.get(i), 0.002, 0.0005);
+					//}
 					//network.train(examples.get(i), 0.5, 0.15);
 					if (i % 100 == 0) {
 						System.out.println(i + "/" + to + "/" + rep);
@@ -210,48 +245,6 @@ public class Lenet4eWithCaseMerging {
 			FileOutputStream fos = new FileOutputStream(new File(args[2]));
 			NetworkIO.output(network.nw, fos);
 			fos.close();
-			return;
-		}
-		
-		if (args[0].equals("correlate")) {
-			System.out.print("Correloiding");
-			System.out.println(System.currentTimeMillis());
-			HashMap<String, ArrayList<DoubleArray>> results = new HashMap<String, ArrayList<DoubleArray>>();
-			for (int i = examples.size() / 2; i < examples.size(); i++) {
-				Example example = examples.get(i);
-				double[] result = network.run(example.input);
-				if (!results.containsKey(example.letter)) {
-					results.put(example.letter, new ArrayList<DoubleArray>());
-				}
-				results.get(example.letter).add(new DoubleArray(result));
-			}
-			
-			ATRWriter w = new ATRWriter(new FileOutputStream(new File(args[3])));
-			for (String l : LETTERS) {
-				System.out.println(l);
-				w.startRecord();
-				w.write(l);
-				double[] errorSum = new double[OUTPUT_SIZE];
-				double[] target = targets.get(letterToFilename(l)).data;
-				for (DoubleArray result : results.get(letterToFilename(l))) {
-					for (int i = 0; i < OUTPUT_SIZE; i++) {
-						errorSum[i] += (result.data[i] - target[i]) * (result.data[i] - target[i]);
-					}
-				}
-				for (int i = 0; i < OUTPUT_SIZE; i++) {
-					System.out.print((int) errorSum[i] * 10);
-					System.out.print(" ");
-				}
-				
-				System.out.println();
-				for (int i = 0; i < OUTPUT_SIZE; i++) {
-					System.out.print(errorSum[i] > examples.size() * 0.001 ? 0 : 1);
-					w.write(errorSum[i] > examples.size() * 0.001 ? "0" : "1");
-				}	
-				
-				w.endRecord();
-				System.out.println();
-			}
 			return;
 		}
 		
@@ -305,30 +298,30 @@ public class Lenet4eWithCaseMerging {
 	
 	static boolean done = false;
 	
-	static double[] getInputForNN(BufferedImage src, double size, double offset) {
-		BufferedImage scaledSrc = new BufferedImage(28, 28, BufferedImage.TYPE_INT_RGB);
+	static double[] getInputForNN(BufferedImage src) {
+		BufferedImage scaledSrc = new BufferedImage(32, 32, BufferedImage.TYPE_INT_RGB);
 		Graphics g = scaledSrc.getGraphics();
 		g.setColor(Color.WHITE);
-		g.fillRect(0, 0, 28, 28);
+		g.fillRect(0, 0, 32, 32);
 		int width = 0;
 		int xOffset = 0;
 		int height = 0;
 		int yOffset = 0;
 		if (src.getWidth() > src.getHeight()) {
-			width = 16;
-			height = 16 * src.getHeight() / src.getWidth();
-			yOffset = (16 - height) / 2;
+			width = 20;
+			height = 20 * src.getHeight() / src.getWidth();
+			yOffset = (20 - height) / 2;
 		} else {
-			height = 16;
-			width = 16 * src.getWidth() / src.getHeight();
-			xOffset = (16 - width) / 2;
+			height = 20;
+			width = 20 * src.getWidth() / src.getHeight();
+			xOffset = (20 - width) / 2;
 		}
 		g.drawImage(src, 6 + xOffset, 6 + yOffset, 6 + xOffset + width, 6 + yOffset + height, 0, 0, src.getWidth(), src.getHeight(), null);
 		src = scaledSrc;
-		double[] result = new double[28 * 28];
-		for (int y = 0; y < 28; y++) { for (int x = 0; x < 28; x++) {
+		double[] result = new double[32 * 32];
+		for (int y = 0; y < 32; y++) { for (int x = 0; x < 32; x++) {
 			Color c = new Color(src.getRGB(x, y));
-			result[y * 28 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
+			result[y * 32 + x] = (c.getRed() + c.getGreen() + c.getBlue()) / 255.0 / 1.5 - 1;
 		} }
 		return result;
 	}
