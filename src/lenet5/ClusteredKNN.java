@@ -22,7 +22,7 @@ import java.util.Map.Entry;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
-public class ClusteredNN {
+public class ClusteredKNN {
 	static class DoubleArray {
 		double[] data;
 
@@ -51,7 +51,7 @@ public class ClusteredNN {
 				: l.toLowerCase() + "-uc";
 	}
 	
-	//static final int K = 20;
+	static final int K = 1;
 	static final int SIZE = 9;
 	static final double ACCEPTANCE_D = 2.5;
 	static final int CLUSTERS = 25;
@@ -135,7 +135,7 @@ public class ClusteredNN {
 									rnd.nextInt(sizeLists.get(fol.getName()).size()));
 						}
 						BufferedImage img = ImageIO.read(f);
-						(nForThisLetter % 2 == 0 && nForThisLetter < 10 ? train : test).add(
+						(nForThisLetter % 2 == 0 && nForThisLetter < 500 ? train : test).add(
 								new Example(fol.getName(), getInputForNN(img, offset, size), null));
 					} catch (Exception e) {
 						e.printStackTrace();
@@ -248,7 +248,7 @@ public class ClusteredNN {
 		int acceptedMisses = 0;
 		int rejectedMisses = 0;
 		for (Example t : test) {
-			String result = null;
+			/*String result = null;
 			double best = 10000000;
 			for (int l = 0; l < LETTERS.length; l++) {
 				for (int c = 0; c < CLUSTERS; c++) {
@@ -258,7 +258,7 @@ public class ClusteredNN {
 						best = d;
 					}
 				}
-			}
+			}*/
 			/*for (Example n : train) {
 				double d = dist(n, t);
 				if (d < best) {
@@ -266,16 +266,23 @@ public class ClusteredNN {
 					best = d;
 				}
 			}*/
-			/*
-			ArrayList<DistExample> dis = new ArrayList<DistExample>();
-			for (Example n : train) {
-				dis.add(new DistExample(n, dist(t, n)));
+			
+			ArrayList<DistCluster> dis = new ArrayList<DistCluster>();
+			for (int l = 0; l < LETTERS.length; l++) {
+				for (int c = 0; c < CLUSTERS; c++) {
+					double d = dist(t, clusters[l][c]);
+					if (!Double.isNaN(d)) {
+						dis.add(new DistCluster(letterToFilename(LETTERS[l]), d));
+					}
+				}
 			}
+			
+			//System.out.println("Dissize: " + dis.size());
 			
 			Collections.sort(dis);
 			HashMap<String, Double> votes = new HashMap<String, Double>();
 			for (int i = 0; i < Math.min(dis.size(), K); i++) {
-				String v = dis.get(i).e.letter;
+				String v = dis.get(i).l;
 				double weight = 1 / (dis.get(i).d + 1);
 				if (!votes.containsKey(v)) {
 					votes.put(v, weight);
@@ -284,6 +291,8 @@ public class ClusteredNN {
 				}
 			}
 			
+			//System.out.println(votes.values().iterator().next());
+			
 			String result = null;
 			double highestVote = 0;
 			for (Entry<String, Double> v : votes.entrySet()) {
@@ -291,52 +300,51 @@ public class ClusteredNN {
 					result = v.getKey();
 					highestVote = v.getValue();
 				}
-			}*/
-			
+			}
+						
 			if (t.letter.equals(result) || (t.letter + "-uc").equals(result) || t.letter.equals(result + "-uc")) {
 				hits++;
-				if (best <= ACCEPTANCE_D) {
+				/*if (best <= ACCEPTANCE_D) {
 					acceptedHits++;
 				} else {
 					rejectedHits++;
-				}
+				}*/
 			} else {
 				misses++;
-				//System.out.print(t.letter + " as " + result);
-				if (best <= ACCEPTANCE_D) {
+				System.out.println(t.letter + " as " + result);
+				/*if (best <= ACCEPTANCE_D) {
 					acceptedMisses++;
-					//System.out.println(" A");
-					System.out.println(t.letter + " as " + result + " A");
+					System.out.println(" A");
 				} else {
 					rejectedMisses++;
-					//System.out.println(" R");
-				}
+					System.out.println(" R");
+				}*/
 			}
 		}
 		
 		System.out.println("Hits " + hits);
 		System.out.println("Misses " + misses);
-		System.out.println("Acceptance boundary " + ACCEPTANCE_D);
+		/*System.out.println("Acceptance boundary " + ACCEPTANCE_D);
 		System.out.println("Accepted Hits " + acceptedHits);
 		System.out.println("Rejected Hits " + rejectedHits);
 		System.out.println("Accepted Misses " + acceptedMisses);
-		System.out.println("Rejected Misses " + rejectedMisses);
+		System.out.println("Rejected Misses " + rejectedMisses);(*/
 		System.out.println((hits * 100 / (hits + misses)) + "%");
 		
 		//ps.close();
 	}
 	
-	static class DistExample implements Comparable<DistExample> {
-		final Example e;
+	static class DistCluster implements Comparable<DistCluster> {
+		final String l;
 		final double d;
 
-		public DistExample(Example e, double d) {
-			this.e = e;
+		public DistCluster(String l, double d) {
+			this.l = l;
 			this.d = d;
 		}
 
 		@Override
-		public int compareTo(DistExample t) {
+		public int compareTo(DistCluster t) {
 			return
 					  d < t.d
 					? -1
